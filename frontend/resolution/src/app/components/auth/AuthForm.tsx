@@ -1,0 +1,198 @@
+// components/auth/AuthForm.tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { authService } from '../../lib/auth';
+
+interface AuthFormProps {
+  type: 'login' | 'register';
+}
+
+export default function AuthForm({ type }: AuthFormProps) {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      if (type === 'register') {
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error('Las contraseñas no coinciden');
+        }
+
+        const { confirmPassword, ...userData } = formData;
+        // Register the user
+        const user = await authService.register(userData);
+        
+        // Create authentication token for the user
+        await authService.createAuthToken(user.id);
+        
+        // Redirect to verification page
+        router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        // Login
+        const { user, token } = await authService.login(formData.email, formData.password);
+        localStorage.setItem('authToken', token);
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      console.error('Auth error:', err);
+      setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  return (
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+
+      {type === 'register' && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                Nombre
+              </label>
+              <input
+                id="first_name"
+                name="first_name"
+                type="text"
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.first_name}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+                Apellido
+              </label>
+              <input
+                id="last_name"
+                name="last_name"
+                type="text"
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.last_name}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              Teléfono
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={formData.phone}
+              onChange={handleChange}
+            />
+          </div>
+        </>
+      )}
+
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Correo electrónico
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          value={formData.email}
+          onChange={handleChange}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          Contraseña
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          value={formData.password}
+          onChange={handleChange}
+        />
+      </div>
+
+      {type === 'register' && (
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            Confirmar contraseña
+          </label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+          />
+        </div>
+      )}
+
+      <div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+        >
+          {loading ? (
+            type === 'login' ? 'Iniciando sesión...' : 'Registrando...'
+          ) : (
+            type === 'login' ? 'Iniciar Sesión' : 'Registrarme'
+          )}
+        </button>
+      </div>
+
+      <div className="mt-6 text-center text-sm">
+        {type === 'login' ? (
+          <p>
+            ¿No tienes una cuenta?{' '}
+            <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
+              Regístrate
+            </Link>
+          </p>
+        ) : (
+          <p>
+            ¿Ya tienes una cuenta?{' '}
+            <Link href="/auth/login" className="font-medium text-blue-600 hover:text-blue-500">
+              Inicia sesión
+            </Link>
+          </p>
+        )}
+      </div>
+    </form>
+  );
+}
