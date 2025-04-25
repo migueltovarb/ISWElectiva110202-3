@@ -1,4 +1,3 @@
-// components/dashboard/QuickAction.tsx
 import Link from 'next/link';
 
 interface QuickActionProps {

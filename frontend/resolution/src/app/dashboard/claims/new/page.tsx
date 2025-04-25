@@ -1,18 +1,22 @@
-// app/dashboard/claims/new/page.tsx
 'use client';
 
 import RequestForm from '../../../components/dashboard/RequestForm';
-import { useAuth } from '../../../components/dashboard/AuthContext';
+import { useState, useEffect } from 'react';
 
-export default function NewClaimPage() {
-  const { isAuthenticated } = useAuth();
+export default function NewRequestPage() {
+  const [loading, setLoading] = useState(true); // Estado de carga
 
-  if (!isAuthenticated) {
-    return <div className="text-center py-8">Redirigiendo al login...</div>;
+  useEffect(() => {
+    setLoading(false); // No se verifica el usuario, se marca como no cargando
+  }, []);
+
+  // Si aún está cargando, mostramos un mensaje de carga
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
+    <div className="max-w-4xl mx-auto p-4 md:p-6">
       <RequestForm type="claim" />
     </div>
   );

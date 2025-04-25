@@ -5,7 +5,7 @@ interface FeatureCardProps {
   title: string;
   description: string;
   buttonText: string;
-  buttonLink: string; // Asegúrate de que esta prop sea requerida
+  buttonLink: string; 
   buttonVariant?: "primary" | "outline";
 }
 
@@ -13,7 +13,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   title,
   description,
   buttonText,
-  buttonLink = "#", // Valor por defecto como fallback
+  buttonLink = "#", 
   buttonVariant = "outline",
 }) => {
   return (

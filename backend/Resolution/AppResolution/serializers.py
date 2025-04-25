@@ -8,12 +8,12 @@ class user_serializer(serializers.ModelSerializer):
         fields = ['id', 'first_name', 'last_name', 'email', 'password', 'phone', 'verified']
         extra_kwargs = {
             'password': {'write_only': True},
-            'verified': {'read_only': True}  # Campo manejado solo por el backend
+            'verified': {'read_only': 1}  
         }
 
     def create(self, validated_data):
         validated_data['password'] = make_password(validated_data['password'])
-        validated_data['verified'] = False
+        validated_data['verified'] = 0
         return super().create(validated_data)
 
 

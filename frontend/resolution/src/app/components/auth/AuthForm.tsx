@@ -1,4 +1,3 @@
-// components/auth/AuthForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -35,16 +34,14 @@ export default function AuthForm({ type }: AuthFormProps) {
         }
 
         const { confirmPassword, ...userData } = formData;
-        // Register the user
+
         const user = await authService.register(userData);
         
-        // Create authentication token for the user
         await authService.createAuthToken(user.id);
         
-        // Redirect to verification page
         router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
       } else {
-        // Login
+
         const { user, token } = await authService.login(formData.email, formData.password);
         localStorage.setItem('authToken', token);
         router.push('/dashboard');

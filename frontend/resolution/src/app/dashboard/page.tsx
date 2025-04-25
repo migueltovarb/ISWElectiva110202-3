@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -11,22 +10,28 @@ import QuickAction from '../components/dashboard/QuickAction';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user } = useAuth(); // Usuario autenticado
   const [claims, setClaims] = useState<Claim[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
+  const [userId, setUserId] = useState<string | null>(null); // Guardar ID del usuario
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        if (!token || !user) return;
+        if (!user) return;
+          setUserId(user.id.toString());
 
-        const [claimsData, requestsData] = await Promise.all([
-          claimsService.getAllClaims(token),
-          requestsService.getAllRequests(token)
-        ]);
+          // Peticiones sin token
+          const [claimsData, requestsData] = await Promise.all([
+            claimsService.getAllClaims(user.id),  // Pasar solo el user.id
+            requestsService.getAllRequests(user.id)  // Pasar solo el user.id
+          ]);
+
+          setClaims(claimsData);
+          setRequests(requestsData);
+
 
         setClaims(claimsData);
         setRequests(requestsData);
@@ -43,50 +48,27 @@ export default function DashboardPage() {
   if (loading) return <div className="text-center py-8">Cargando dashboard...</div>;
   if (error) return <div className="text-red-500 text-center py-8">Error: {error}</div>;
 
-  // Datos para las tarjetas de estadísticas
   const pendingClaims = claims.filter(c => c.status === 'pending').length;
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
 
-  // Elementos recientes (últimos 3 de cada tipo)
-  const recentClaims = [...claims]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
-  
-  const recentRequests = [...requests]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
+  const recentClaims = claims.slice(0, 3);
+  const recentRequests = requests.slice(0, 3);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Panel de Control</h1>
         <p className="text-sm text-gray-500">
-          Bienvenido, <span className="font-medium">{user?.first_name} {user?.last_name}</span>
+          Bienvenido, <span className="font-medium">{user?.first_name}</span>
         </p>
       </div>
 
       {/* Acciones rápidas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <QuickAction 
-          title="Nuevo Reclamo" 
-          icon="📝" 
-          href="/dashboard/claims/new" 
-        />
-        <QuickAction 
-          title="Nueva Solicitud" 
-          icon="📋" 
-          href="/dashboard/requests/new" 
-        />
-        <QuickAction 
-          title="Mis Reclamos" 
-          icon="📌" 
-          href="/dashboard/claims" 
-        />
-        <QuickAction 
-          title="Mis Solicitudes" 
-          icon="📩" 
-          href="/dashboard/requests" 
-        />
+        <QuickAction title="Nuevo Reclamo" icon="📝" href="/dashboard/claims/new" />
+        <QuickAction title="Nueva Solicitud" icon="📋" href="/dashboard/requests/new" />
+        <QuickAction title="Mis Reclamos" icon="📌" href="/dashboard/claims" />
+        <QuickAction title="Mis Solicitudes" icon="📩" href="/dashboard/requests" />
       </div>
 
       {/* Estadísticas */}
@@ -123,7 +105,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">Reclamos Recientes</h3>
             <Link href="/dashboard/claims" className="text-sm text-blue-600 hover:text-blue-800">
-              Ver todos →
+              Ver todos → 
             </Link>
           </div>
           <div className="divide-y divide-gray-200">
@@ -134,11 +116,9 @@ export default function DashboardPage() {
                   title={claim.subject}
                   status={claim.status === 'pending' ? 'pendiente' : 
                          claim.status === 'in-progress' ? 'en proceso' : 'completado'}
-                  time={new Date(claim.date).toLocaleDateString()}
-                  priority={
-                    claim.status === 'pending' ? 'alta' : 
-                    claim.status === 'in-progress' ? 'media' : 'baja'
-                  }
+                  time=""
+                  priority={claim.status === 'pending' ? 'alta' : 
+                            claim.status === 'in-progress' ? 'media' : 'baja'}
                 />
               ))
             ) : (
@@ -151,7 +131,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">Solicitudes Recientes</h3>
             <Link href="/dashboard/requests" className="text-sm text-blue-600 hover:text-blue-800">
-              Ver todos →
+              Ver todos → 
             </Link>
           </div>
           <div className="divide-y divide-gray-200">
@@ -162,11 +142,9 @@ export default function DashboardPage() {
                   title={request.subject}
                   status={request.status === 'pending' ? 'pendiente' : 
                          request.status === 'in-review' ? 'en revisión' : 'completado'}
-                  time={new Date(request.date).toLocaleDateString()}
-                  priority={
-                    request.status === 'pending' ? 'alta' : 
-                    request.status === 'in-review' ? 'media' : 'baja'
-                  }
+                  time=""
+                  priority={request.status === 'pending' ? 'alta' : 
+                            request.status === 'in-review' ? 'media' : 'baja'}
                 />
               ))
             ) : (
@@ -189,15 +167,11 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">En Proceso</span>
-                <span className="text-sm font-medium">
-                  {claims.filter(c => c.status === 'in-progress').length}
-                </span>
+                <span className="text-sm font-medium">{claims.filter(c => c.status === 'in-progress').length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completados</span>
-                <span className="text-sm font-medium">
-                  {claims.filter(c => c.status === 'completed').length}
-                </span>
+                <span className="text-sm font-medium">{claims.filter(c => c.status === 'completed').length}</span>
               </div>
             </div>
           </div>
@@ -210,15 +184,11 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">En Revisión</span>
-                <span className="text-sm font-medium">
-                  {requests.filter(r => r.status === 'in-review').length}
-                </span>
+                <span className="text-sm font-medium">{requests.filter(r => r.status === 'in-review').length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completadas</span>
-                <span className="text-sm font-medium">
-                  {requests.filter(r => r.status === 'completed').length}
-                </span>
+                <span className="text-sm font-medium">{requests.filter(r => r.status === 'completed').length}</span>
               </div>
             </div>
           </div>

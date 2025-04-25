@@ -1,5 +1,5 @@
 import json
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework.decorators import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
@@ -48,7 +48,6 @@ class UserView(APIView):
         return Response(serializer.data)
     
     def put(self, request):
-
         data = {
             'first_name': request.data.get('first_name'),
             'last_name': request.data.get('last_name'),
@@ -63,7 +62,6 @@ class UserView(APIView):
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Exception as e:
-                # Capturar errores específicos de unicidad
                 if 'email' in str(e):
                     return Response({"error": "Ya existe un usuario con este correo electrónico"}, status=status.HTTP_400_BAD_REQUEST)
                 elif 'phone' in str(e):
@@ -71,6 +69,23 @@ class UserView(APIView):
                 else:
                     return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def patch(self, request, pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID del usuario."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = get_object_or_404(User, pk=pk)
+
+        verified_value = request.data.get("verified")
+        if verified_value is None:
+            return Response({"error": "Campo 'verified' requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user.verified = int(verified_value)  
+            user.save()
+            return Response({"message": "Verificación actualizada correctamente."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     
 #auth
@@ -207,19 +222,19 @@ class AuthenticationView(APIView):
 
 #reclamo
 class ClaimView(APIView):
-    def post(self, request):
+    def post(self, claim):
         data = {
-            'user': request.data.get('user'),
-            'subject': request.data.get('subject'),
-            'description': request.data.get('description'),
-            'status': request.data.get('status'),
+            'user': claim.data.get('user'),
+            'subject': claim.data.get('subject'),
+            'description': claim.data.get('description'),
+            'status': claim.data.get('status'),
         }
         serializer = claim_serializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    def get(self, request):
+    def get(self, claims):
         claims = Claim.objects.all()
         serializer = claim_serializer(claims, many=True)
         return Response(serializer.data)
@@ -236,8 +251,9 @@ class RequestView(APIView):
         serializer = request_serializer(data=data)
         if serializer.is_valid():
             serializer.save()
-
-    def get(self, request):
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, requests):
         requests = Request.objects.all()
         serializer = request_serializer(requests, many=True)
         return Response(serializer.data)

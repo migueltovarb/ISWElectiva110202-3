@@ -5,6 +5,7 @@ from AppResolution.views import UserView, ClaimView, RequestView, ProfileView, A
 urlpatterns = [
     # User endpoints
     path('user', UserView.as_view()),
+    path('user/<int:pk>', UserView.as_view()),
 
     #Auth endpoints
     path('auth', AuthenticationView.as_view()),

@@ -8,20 +8,20 @@ const FeaturesSection = () => {
           title="Gestión Centralizada"
           description="Administre todos sus reclamos y solicitudes desde un único panel intuitivo."
           buttonText="Más información"
-          buttonLink="/features#gestion" // Asegúrate de incluir esto
+          buttonLink="/features#gestion" 
         />
         <FeatureCard
           title="Análisis Avanzado"
           description="Obtenga estadísticas detalladas y reportes personalizados sobre sus casos."
           buttonText="Ver demo"
-          buttonLink="/demo" // Asegúrate de incluir esto
+          buttonLink="/demo" 
           buttonVariant="primary"
         />
         <FeatureCard
           title="Soporte 24/7"
           description="Nuestro equipo de expertos está disponible para ayudarle en cualquier momento."
           buttonText="Contacto"
-          buttonLink="/contact" // Asegúrate de incluir esto
+          buttonLink="/contact" 
         />
       </div>
     </section>

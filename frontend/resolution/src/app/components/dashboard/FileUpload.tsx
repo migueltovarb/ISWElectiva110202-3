@@ -1,4 +1,3 @@
-// components/dashboard/FileUpload.tsx
 'use client';
 
 import { useState, useRef } from 'react';
