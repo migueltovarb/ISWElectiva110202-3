@@ -13,7 +13,7 @@ type RequestFormProps = {
 export default function RequestForm({ type }: RequestFormProps) {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    user: 1,  // Establecer el userId por defecto aquí
+    user: 1, 
     subject: '',
     description: '',
     status: 'Pendiente',

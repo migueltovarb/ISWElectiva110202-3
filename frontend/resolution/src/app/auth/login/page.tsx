@@ -1,4 +1,3 @@
-// app/auth/login/page.tsx
 'use client';
 
 import AuthLayout from '../../components/auth/AuthLayout';
