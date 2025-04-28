@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import LoginPage from '@/app/auth/login/page'; // Asegúrate de que la ruta sea correcta
+import LoginPage from '../src/app/auth/login/page'; // Asegúrate de que la ruta sea correcta
 
 
-jest.mock('./app/components/auth/AuthLayout', () => ({
+jest.mock('../src/app/components/auth/AuthLayout', () => ({
   __esModule: true,
   default: ({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) => (
     <div>
@@ -15,7 +15,7 @@ jest.mock('./app/components/auth/AuthLayout', () => ({
 }));
 
 // Mock de AuthForm
-jest.mock('./app/components/auth/AuthForm', () => ({
+jest.mock('../src/app/components/auth/AuthForm', () => ({
   __esModule: true,
   default: ({ type }: { type: string }) => (
     <form data-testid="auth-form">

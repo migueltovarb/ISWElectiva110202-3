@@ -1,10 +1,10 @@
 // __tests__/app/auth/register/page.test.tsx
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import RegisterPage from '@/app/auth/register/page';
+import RegisterPage from '../src/app/auth/register/page';
 
 // Mock de AuthLayout
-jest.mock('@/components/auth/AuthLayout', () => ({
+jest.mock('../src/app/components/auth/AuthLayout', () => ({
   __esModule: true,
   default: ({ children, title, subtitle }: { 
     children: React.ReactNode; 
@@ -20,11 +20,11 @@ jest.mock('@/components/auth/AuthLayout', () => ({
 }));
 
 // Mock de AuthForm
-jest.mock('@/components/auth/AuthForm', () => ({
+jest.mock('../src/app/components/auth/AuthForm', () => ({
   __esModule: true,
   default: ({ type }: { type: string }) => (
     <form data-testid="auth-form">
-      <input type="hidden" value={type} data-testid="auth-form-type" />
+      <input type="hidden" value={type} data-testid="auth-form-type" />''
       <button type="submit" data-testid="submit-button">Enviar</button>
     </form>
   )
