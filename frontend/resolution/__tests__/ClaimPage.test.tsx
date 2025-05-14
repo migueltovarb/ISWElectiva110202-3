@@ -9,7 +9,7 @@ jest.mock('../src/app/components/dashboard/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
-jest.mock('@/lib/claims', () => ({
+jest.mock('../src/app/lib/claims', () => ({
   claimsService: {
     getAllClaims: jest.fn(),
   },
@@ -25,7 +25,7 @@ describe('ClaimsPage', () => {
   });
 
   it('muestra el botón de nuevo reclamo', async () => {
-    const { claimsService } = require('@/lib/claims');
+    const { claimsService } = require('../src/app/lib/claims');
     claimsService.getAllClaims.mockResolvedValue([]);
     
     render(<ClaimsPage />);
@@ -33,7 +33,7 @@ describe('ClaimsPage', () => {
   });
 
   it('muestra la lista de reclamos', async () => {
-    const { claimsService } = require('@/lib/claims');
+    const { claimsService } = require('../src/app/lib/claims');
     claimsService.getAllClaims.mockResolvedValue([
       { id: 1, subject: 'Test Claim', description: 'Test Desc', status: 'pending', date: new Date() }
     ]);

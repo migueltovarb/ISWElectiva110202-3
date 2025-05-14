@@ -42,7 +42,7 @@ describe('DashboardPage', () => {
       user: { id: 1, first_name: 'Test' } 
     });
     
-    const { claimsService, requestsService } = require('@/lib');
+    const { claimsService, requestsService } = require('../src/app/lib');
     claimsService.getAllClaims.mockResolvedValue([]);
     requestsService.getAllRequests.mockResolvedValue([]);
   });
