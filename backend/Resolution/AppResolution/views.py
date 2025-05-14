@@ -19,13 +19,16 @@ class UserView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        # Handle both list and dictionary input formats
+        request_data = request.data[0] if isinstance(request.data, list) else request.data
+        
         data = {
-            'first_name': request.data.get('first_name'),
-            'last_name': request.data.get('last_name'),
-            'email': request.data.get('email'),
-            'password': request.data.get('password'),
-            'phone': request.data.get('phone'),
-            'verified': request.data.get('verified'),
+            'first_name': request_data.get('first_name'),
+            'last_name': request_data.get('last_name'),
+            'email': request_data.get('email'),
+            'password': request_data.get('password'),
+            'phone': request_data.get('phone'),
+            'verified': request_data.get('verified'),
         }
         serializer = user_serializer(data=data)
         if serializer.is_valid():
