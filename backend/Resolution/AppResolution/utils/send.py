@@ -1,58 +1,97 @@
+import os
+import sys
+import django
+from pathlib import Path
+
+# Configurar el entorno Django
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(BASE_DIR))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Resolution.settings')
+django.setup()
+
 from mailersend import emails
 from dotenv import load_dotenv
-import os
 from AppResolution.utils.authToken import generate_auth_code
 
 load_dotenv()
 
 def send_auth_email(token=None):
-    # Si no se proporciona un token, generamos uno
-    if token is None:
-        token = generate_auth_code()
-    
-    print(f"Código a enviar: {token}")  # Para verificar el código generado
+    try:
+        # Si no se proporciona un token, generamos uno
+        if token is None:
+            token = generate_auth_code()
+        
+        print(f"Código a enviar: {token}")
 
-    mailer = emails.NewEmail("mlsn.1e2795f40f1f51fd362e4c204b13f74b5c7ee222ef5c2ee7a865d57e950205c7")
-    mail_body = {}
+        # Inicializar el cliente de email con la API key
+        api_key = "mlsn.9b7fb78a68cb11e86a15ed75e1ae64f3f067292cad5a3c5fb6b911d907f7a9b7"
+        
+        mailer = emails.NewEmail(api_key)
+        mail_body = {}
 
-    mail_from = {
-        "name": "Sistema de Autenticación",
-        "email": "MS_uYWDqH@test-vz9dlemm0k64kj50.mlsender.net",
-    }
-
-    recipients = [
-        {
-            "name": "Usuario",
-            "email": "makibu277353@gmail.com",
+        mail_from = {
+            "name": "Sistema de Autenticación",
+            "email": "MS_uYWDqH@test-vz9dlemm0k64kj50.mlsender.net",
         }
-    ]
 
-    # Usamos el código generado en el contenido del email
-    html_content = f"""
-    <html>
-        <body>
-            <h2>Código de Autenticación</h2>
-            <p>Su código de doble autenticación es: <strong>{token}</strong></p>
-            <p>Este código expirará en 10 minutos.</p>
-        </body>
-    </html>
-    """
+        recipients = [
+            {
+                "name": "Usuario",
+                "email": "dylansantiagordriguez.p@gmail.com",
+            }
+        ]
 
-    text_content = f"Su código de doble autenticación es: {token}\nEste código expirará en 10 minutos."
+        # Contenido del email
+        html_content = f"""
+        <html>
+            <body>
+                <h2>Código de Autenticación</h2>
+                <p>Su código de doble autenticación es: <strong>{token}</strong></p>
+                <p>Este código expirará en 10 minutos.</p>
+            </body>
+        </html>
+        """
 
-    # Configuramos el email
-    mailer.set_mail_from(mail_from, mail_body)
-    mailer.set_mail_to(recipients, mail_body)
-    mailer.set_subject("Código de Autenticación", mail_body)
-    mailer.set_html_content(html_content, mail_body)
-    mailer.set_plaintext_content(text_content, mail_body)
+        text_content = f"Su código de doble autenticación es: {token}\nEste código expirará en 10 minutos."
 
-    # Enviamos el email
-    mailer.send(mail_body)
-    
-    # Retornamos el código generado para guardarlo
-    return token
+        try:
+            # Configuramos el email
+            mailer.set_mail_from(mail_from, mail_body)
+            mailer.set_mail_to(recipients, mail_body)
+            mailer.set_subject("Código de Autenticación", mail_body)
+            mailer.set_html_content(html_content, mail_body)
+            mailer.set_plaintext_content(text_content, mail_body)
+
+            print("Intentando enviar email...")
+            # Enviamos el email y capturamos la respuesta
+            response = mailer.send(mail_body)
+            
+            # Verificar si la respuesta es un código de error
+            if isinstance(response, int) and response >= 400:
+                if response == 422:
+                    raise Exception("Se ha alcanzado el límite de cuota de correos. Por favor, contacte al administrador.")
+                else:
+                    raise Exception(f"Error del servidor de correo: {response}")
+
+            print("Email enviado exitosamente")
+            return token
+
+        except Exception as e:
+            print(f"Error durante el envío del email: {str(e)}")
+            raise
+
+    except Exception as e:
+        print(f"Error general en send_auth_email: {str(e)}")
+        return None
 
 if __name__ == "__main__":
-    code = send_auth_email()
-    print(f"Código enviado: {code}")
+    try:
+        code = send_auth_email()
+        if code:
+            print(f"Código generado: {code}")
+            print("IMPORTANTE: El correo NO pudo ser enviado debido a limitaciones de la cuenta de prueba.")
+            print("Por favor, contacte al administrador para actualizar la cuenta de correo.")
+        else:
+            print("No se pudo generar o enviar el código")
+    except Exception as e:
+        print(f"Error general en el programa principal: {str(e)}")
