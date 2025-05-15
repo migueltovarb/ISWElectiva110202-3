@@ -45,7 +45,7 @@ describe('VerifyPage', () => {
   it('redirige si no hay email', () => {
     mockGet.mockReturnValue(null);
     render(<VerifyPage />);
-    expect(mockPush).toHaveBeenCalledWith('../src/app/auth/login');
+    expect(mockPush).toHaveBeenCalledWith('/auth/login');
   });
 
   it('muestra el título y subtítulo correctos', () => {
@@ -72,7 +72,7 @@ describe('VerifyPage', () => {
     authService.resendVerificationCode.mockResolvedValue({ success: true });
     
     render(<VerifyPage />);
-    fireEvent.click(screen.getByText('Reenviar código'));
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar código/ }));
     
     await waitFor(() => {
       expect(authService.resendVerificationCode).toHaveBeenCalledWith('test@example.com');
