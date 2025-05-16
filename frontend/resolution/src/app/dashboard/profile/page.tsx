@@ -83,7 +83,8 @@ export default function ProfilePage() {
     setSuccess('');
     try {
       const token = localStorage.getItem('authToken');
-      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/profile/${profile.id}`, form, {
+      // Actualizar el perfil de usuario con PUT a la API correcta
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/profile/${user.id}`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProfile({ ...profile, ...form });

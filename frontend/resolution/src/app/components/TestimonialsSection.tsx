@@ -28,7 +28,7 @@ const TestimonialsSection: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {testimonials.map((testimonial) => (
           <div key={testimonial.id} className="card p-6">
-            <p className="text-gray-600 italic mb-4">"{testimonial.quote}"</p>
+            <p className="text-gray-600 italic mb-4">&ldquo;{testimonial.quote}&rdquo;</p>
             <div>
               <p className="font-semibold text-gray-900">{testimonial.author}</p>
               <p className="text-sm text-gray-500">{testimonial.role}</p>
