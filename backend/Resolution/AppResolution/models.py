@@ -10,6 +10,7 @@ class User(AbstractUser):
     password = models.CharField(max_length=30)
     phone = models.CharField(max_length=15, null=True, unique=True)
     verified = models.IntegerField(default=0)
+    profile = models.OneToOneField('Profile', on_delete=models.SET_NULL, null=True, blank=True, related_name='user_profile')
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -25,6 +26,7 @@ class Claim(models.Model):
     subject = models.CharField(max_length=500, null=True)
     description = models.CharField(max_length=500, null=True)
     status = models.CharField(max_length=255, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Request(models.Model):
@@ -32,10 +34,10 @@ class Request(models.Model):
     subject = models.CharField(max_length=500, null=True)
     description = models.CharField(max_length=500, null=True)
     status = models.CharField(max_length=255, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Profile(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_profile')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)

@@ -59,7 +59,7 @@ export default function DashboardPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Panel de Control</h1>
         <p className="text-sm text-gray-500">
-          Bienvenido, <span className="font-medium">{user?.first_name}</span>
+          Bienvenido, <span className="font-medium">{user?.first_name} {user?.last_name}</span>
         </p>
       </div>
 
@@ -163,15 +163,15 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Pendientes</span>
-                <span className="text-sm font-medium">{pendingClaims}</span>
+                <span className="text-sm font-medium">{claims.filter(c => c.status === 'Pendiente').length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">En Proceso</span>
-                <span className="text-sm font-medium">{claims.filter(c => c.status === 'in-progress').length}</span>
+                <span className="text-sm font-medium">{claims.filter(c => c.status === 'En Proceso').length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completados</span>
-                <span className="text-sm font-medium">{claims.filter(c => c.status === 'completed').length}</span>
+                <span className="text-sm font-medium">{claims.filter(c => c.status === 'Completado').length}</span>
               </div>
             </div>
           </div>
@@ -180,15 +180,15 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Pendientes</span>
-                <span className="text-sm font-medium">{pendingRequests}</span>
+                <span className="text-sm font-medium">{requests.filter(r => r.status === 'Pendiente').length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">En Revisión</span>
-                <span className="text-sm font-medium">{requests.filter(r => r.status === 'in-review').length}</span>
+                <span className="text-sm text-gray-600">En Proceso</span>
+                <span className="text-sm font-medium">{requests.filter(r => r.status === 'En Proceso').length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completadas</span>
-                <span className="text-sm font-medium">{requests.filter(r => r.status === 'completed').length}</span>
+                <span className="text-sm font-medium">{requests.filter(r => r.status === 'Completado').length}</span>
               </div>
             </div>
           </div>

@@ -3,9 +3,10 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 
 class user_serializer(serializers.ModelSerializer):
+    profile = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'password', 'phone', 'verified']
+        fields = ['id', 'first_name', 'last_name', 'email', 'password', 'phone', 'verified', 'profile']
         extra_kwargs = {
             'password': {'write_only': True},
             'verified': {'read_only': 1}  
@@ -25,12 +26,12 @@ class authentication_serializer(serializers.ModelSerializer):
 class claim_serializer(serializers.ModelSerializer):
     class Meta:
         model = Claim
-        fields = ['id', 'user', 'subject', 'description', 'status']
+        fields = ['id', 'user', 'subject', 'description', 'status', 'created_at']
 
 class request_serializer(serializers.ModelSerializer):
     class Meta:
         model = Request
-        fields = ['id', 'user', 'subject', 'description', 'status']
+        fields = ['id', 'user', 'subject', 'description', 'status', 'created_at']
 
 class profile_serializer(serializers.ModelSerializer):
     class Meta:

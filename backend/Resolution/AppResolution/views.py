@@ -154,6 +154,36 @@ class AuthenticationView(APIView):
         serializer = authentication_serializer(auth_records, many=True)
         return Response(serializer.data)
     
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        input_code = request.data.get('code')
+        if not user_id or not input_code:
+            return Response({'error': 'Faltan datos'}, status=400)
+        try:
+            auth_record = Authentication.objects.filter(user_id=user_id).order_by('-id').first()
+            if not auth_record:
+                return Response({'error': 'No se encontró código para este usuario'}, status=404)
+            if str(auth_record.token) == str(input_code):
+                user = User.objects.get(id=user_id)
+                user.verified = 1
+                user.save()
+                # Crear perfil si no existe y asignar al usuario
+                if not user.profile:
+                    perfil = Profile.objects.create(
+                        first_name=user.first_name,
+                        last_name=user.last_name,
+                        email=user.email,
+                        phone=user.phone or '',
+                        password='',
+                        photo=''
+                    )
+                    user.profile = perfil
+                    user.save()
+                return Response({'success': True})
+            else:
+                return Response({'success': False, 'error': 'Código incorrecto'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
    
 #reclamo
 class ClaimView(APIView):
@@ -368,11 +398,14 @@ class ProfileView(APIView):
         filter_user_id = user_id or request.query_params.get('user_id')
         if filter_user_id:
             try:
-                profiles = Profile.objects.filter(user_id=filter_user_id)
-                if not profiles.exists():
-                    return Response({"error": "No se encontraron perfiles para este usuario"}, status=status.HTTP_404_NOT_FOUND)
-                serializer = profile_serializer(profiles, many=True)
+                user = User.objects.get(id=filter_user_id)
+                profile = user.profile
+                if not profile:
+                    return Response({"error": "No se encontró perfil para este usuario"}, status=status.HTTP_404_NOT_FOUND)
+                serializer = profile_serializer(profile)
                 return Response(serializer.data)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -403,8 +436,8 @@ class LoginView(APIView):
                 if user.verified == 1:
                     # Buscar el perfil del usuario
                     try:
-                        profile = Profile.objects.get(user_id=user.id)
-                        profile_data = profile_serializer(profile).data
+                        profile = user.profile
+                        profile_data = profile_serializer(profile).data if profile else None
                     except Profile.DoesNotExist:
                         profile_data = None
                     
@@ -419,7 +452,8 @@ class LoginView(APIView):
                             "phone": user.phone,
                             "verified": user.verified
                         },
-                        "profile": profile_data
+                        "profile": profile_data,
+                        "token": "dummy-token"
                     }, status=status.HTTP_200_OK)
                 else:
                     return Response({"error": "Usuario no verificado"}, status=status.HTTP_401_UNAUTHORIZED)

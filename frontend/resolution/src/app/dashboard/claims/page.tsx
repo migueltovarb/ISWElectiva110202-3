@@ -11,14 +11,13 @@ export default function ClaimsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user } = useAuth();
+  const isClient = useIsClient();
 
   useEffect(() => {
+    if (!isClient || !user) return;
     const fetchClaims = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        if (!token || !user) return;
-        
-        const data = await claimsService.getAllClaims(token);
+        const data = await claimsService.getAllClaims(user.id);
         setClaims(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al cargar reclamos');
@@ -26,10 +25,10 @@ export default function ClaimsPage() {
         setLoading(false);
       }
     };
-
     fetchClaims();
-  }, [user]);
+  }, [user, isClient]);
 
+  if (!isClient || !user) return <div className="text-center py-8">Cargando reclamos...</div>;
   if (loading) return <div className="text-center py-8">Cargando reclamos...</div>;
   if (error) return <div className="text-red-500 text-center py-8">Error: {error}</div>;
 
@@ -56,13 +55,13 @@ export default function ClaimsPage() {
                     <p className="text-sm font-medium text-blue-600 truncate">{claim.subject}</p>
                     <div className="ml-2 flex-shrink-0 flex">
                       <p className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        claim.status === 'pending' 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : claim.status === 'completed'
+                        ['pending', 'pendiente'].includes(claim.status.toLowerCase())
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : ['completed', 'completado'].includes(claim.status.toLowerCase())
                           ? 'bg-green-100 text-green-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}>
-                        {claim.status}
+                        {traducirEstado(claim.status)}
                       </p>
                     </div>
                   </div>
@@ -73,7 +72,7 @@ export default function ClaimsPage() {
                       </p>
                     </div>
                     <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                      <span>{new Date(claim.date).toLocaleDateString()}</span>
+                      <FechaCreacion date={claim.created_at} />
                     </div>
                   </div>
                 </div>
@@ -84,4 +83,40 @@ export default function ClaimsPage() {
       </div>
     </div>
   );
+}
+
+function useIsClient() {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => setIsClient(true), []);
+  return isClient;
+}
+
+function FechaCreacion({ date }: { date?: string }) {
+  const [fecha, setFecha] = useState<string | null>(null);
+  useEffect(() => {
+    if (date && !isNaN(new Date(date).getTime())) {
+      setFecha(new Date(date).toLocaleDateString());
+    } else {
+      setFecha('Sin fecha');
+    }
+  }, [date]);
+  // Solo renderiza después de montar en el cliente
+  if (fecha === null) return <span className="invisible">-</span>;
+  return <span>{fecha}</span>;
+}
+
+function traducirEstado(estado: string) {
+  switch (estado.toLowerCase()) {
+    case 'pending':
+    case 'pendiente':
+      return 'pendiente';
+    case 'in_progress':
+    case 'en proceso':
+      return 'en proceso';
+    case 'completed':
+    case 'completado':
+      return 'completado';
+    default:
+      return estado;
+  }
 }
