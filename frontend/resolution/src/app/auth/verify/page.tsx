@@ -174,7 +174,7 @@ function VerifyContent() {
               {canResend ? (
                 'Reenviar código'
               ) : (
-                Reenviar código en ${countdown}s
+                `Reenviar código en ${countdown}s`
               )}
             </button>
           </div>
@@ -204,5 +204,5 @@ export default function VerifyPage() {
     }>
       <VerifyContent />
     </Suspense>
-  );
+  );
 }
