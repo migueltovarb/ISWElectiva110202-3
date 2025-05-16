@@ -65,7 +65,6 @@ jobs:
           name: python-app
 
       - name: Unzip artifact for deployment
-        working-directory: backend
         run: unzip release.zip
 
       
