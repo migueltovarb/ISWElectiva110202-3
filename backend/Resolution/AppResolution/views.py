@@ -398,11 +398,14 @@ class ProfileView(APIView):
         filter_user_id = user_id or request.query_params.get('user_id')
         if filter_user_id:
             try:
-                profiles = Profile.objects.filter(user_id=filter_user_id)
-                if not profiles.exists():
-                    return Response({"error": "No se encontraron perfiles para este usuario"}, status=status.HTTP_404_NOT_FOUND)
-                serializer = profile_serializer(profiles, many=True)
+                user = User.objects.get(id=filter_user_id)
+                profile = user.profile
+                if not profile:
+                    return Response({"error": "No se encontró perfil para este usuario"}, status=status.HTTP_404_NOT_FOUND)
+                serializer = profile_serializer(profile)
                 return Response(serializer.data)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -433,8 +436,8 @@ class LoginView(APIView):
                 if user.verified == 1:
                     # Buscar el perfil del usuario
                     try:
-                        profile = Profile.objects.get(user_id=user.id)
-                        profile_data = profile_serializer(profile).data
+                        profile = user.profile
+                        profile_data = profile_serializer(profile).data if profile else None
                     except Profile.DoesNotExist:
                         profile_data = None
                     
