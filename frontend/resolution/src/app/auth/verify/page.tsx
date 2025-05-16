@@ -1,13 +1,13 @@
 // app/auth/verify/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '../../lib/auth';
 import AuthLayout from '../../components/auth/AuthLayout';
 import Link from 'next/link';
 
-export default function VerifyPage() {
+function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -187,5 +187,22 @@ export default function VerifyPage() {
         </form>
       )}
     </AuthLayout>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <AuthLayout
+        title="Verificar cuenta"
+        subtitle="Cargando..."
+      >
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </AuthLayout>
+    }>
+      <VerifyContent />
+    </Suspense>
   );
 }

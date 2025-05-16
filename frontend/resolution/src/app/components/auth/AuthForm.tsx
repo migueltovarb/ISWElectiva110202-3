@@ -33,15 +33,16 @@ export default function AuthForm({ type }: AuthFormProps) {
           throw new Error('Las contraseñas no coinciden');
         }
 
-        const { confirmPassword, ...userData } = formData;
+        // Desestructurar para excluir confirmPassword
+        const { first_name, last_name, email, password, phone } = formData;
         
         // Asegurarnos de que los datos estén en el formato correcto
         const formattedData = {
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          email: userData.email,
-          password: userData.password,
-          phone: userData.phone || '', // Si no hay teléfono, enviamos string vacío
+          first_name,
+          last_name,
+          email,
+          password,
+          phone: phone || '', // Si no hay teléfono, enviamos string vacío
         };
 
         const user = await authService.register(formattedData);
