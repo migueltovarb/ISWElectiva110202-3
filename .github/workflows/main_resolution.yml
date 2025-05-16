@@ -45,7 +45,7 @@ jobs:
         with:
           name: python-app
           path: |
-            /backend/Resolution/release.zip
+            backend/Resolution/release.zip
             !venv/
 
   deploy:
