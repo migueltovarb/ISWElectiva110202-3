@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -21,6 +20,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const logout = () => {
+    localStorage.removeItem('authToken');
+    setUser(null);
+    router.push('/auth/login');
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
@@ -31,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [logout, router]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -42,12 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       throw error;
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    setUser(null);
-    router.push('/auth/login');
   };
 
   const value = {

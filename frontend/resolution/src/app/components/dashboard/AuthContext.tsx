@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         setIsAuthenticated(false);
       }
-    } catch (err) {
+    } catch (_) {
       setError('Error al cargar los datos del usuario');
     }
     
