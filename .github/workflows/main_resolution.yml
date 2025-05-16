@@ -25,19 +25,19 @@ jobs:
           python-version: '3.13'
 
       - name: Create and start virtual environment
-        working-directory: backend/Resolution
+        working-directory: backend
         run: |
           python -m venv venv
           source venv/bin/activate
       
       - name: Install dependencies
-        working-directory: backend/Resolution
+        working-directory: backend
         run: pip install -r requirements.txt
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
-        working-directory: backend/Resolution
+        working-directory: backen
         run: zip release.zip ./* -r
 
       - name: Upload artifact for deployment jobs
@@ -45,7 +45,7 @@ jobs:
         with:
           name: python-app
           path: |
-            backend/Resolution/release.zip
+            backend/release.zip
             !venv/
 
   deploy:
@@ -65,7 +65,7 @@ jobs:
           name: python-app
 
       - name: Unzip artifact for deployment
-        working-directory: backend/Resolution
+        working-directory: backend
         run: unzip release.zip
 
       
