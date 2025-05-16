@@ -13,6 +13,7 @@ urlpatterns = [
     # Auth endpoints
     path('auth', AuthenticationView.as_view()),
     path('auth/<int:pkid>', AuthenticationView.as_view()),
+    path('auth/verify', AuthenticationView.as_view()),
 
     # Claim endpoints
     path('claim', ClaimView.as_view()),

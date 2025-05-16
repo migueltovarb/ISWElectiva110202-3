@@ -8,6 +8,7 @@ export interface Claim {
   subject: string;
   description: string;
   status: string;
+  created_at?: string;
 }
 
 export const claimsService = {
@@ -30,17 +31,20 @@ export const claimsService = {
 
   getAllClaims: async (userId: number): Promise<Claim[]> => {
     try {
-      const response = await fetchApi(`/claim?userId=${userId}`, {
+      const response = await fetchApi(`/claim/user/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-
       return response;
     } catch (error) {
       console.error('Error fetching claims:', error);
       throw error;
     }
+  },
+
+  getClaimById: async (id: number, token?: string) => {
+    return await fetchApi(`/claim/${id}`, { method: 'GET' }, token);
   },
 };

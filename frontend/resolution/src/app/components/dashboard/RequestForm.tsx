@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { claimsService } from '../../lib/claims';
 import { requestsService } from '../../lib/requests';
 import FileUpload from './FileUpload';
+import { useAuth } from './AuthContext';
 
 type RequestFormProps = {
   type: 'claim' | 'request';
@@ -12,18 +13,15 @@ type RequestFormProps = {
 
 export default function RequestForm({ type }: RequestFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    user: 1, 
+    user: user?.id || '',
     subject: '',
     description: '',
-    status: 'Pendiente',
   });
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // El userId por defecto (123) ya está en el estado `formData.user`
-  const userId = formData.user;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +31,10 @@ export default function RequestForm({ type }: RequestFormProps) {
       setError('');
 
       const payload = {
-        user: userId,  // No se necesita obtener el userId dinámicamente
+        user: user?.id ?? 0,
         subject: formData.subject,
         description: formData.description,
-        status: formData.status,
+        status: 'Pendiente',
       };
 
       // Dependiendo del tipo (claim o request), llamar al servicio correspondiente
@@ -98,23 +96,6 @@ export default function RequestForm({ type }: RequestFormProps) {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             required
           />
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-            Estado *
-          </label>
-          <select
-            id="status"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            required
-          >
-            <option value="Pendiente">Pendiente</option>
-            <option value="En Proceso">En Proceso</option>
-            <option value="Completado">Completado</option>
-          </select>
         </div>
 
         <div className="mb-6">

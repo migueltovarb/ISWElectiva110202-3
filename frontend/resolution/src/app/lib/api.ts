@@ -26,19 +26,17 @@ export const fetchApi = async (
 ): Promise<any> => {
   const url = `${API_URL}${endpoint}`;
   
-  // Configuración especial para Django CSRF
-  const csrfOptions = {
-    ...options,
-    credentials: 'include' as RequestCredentials, // Para enviar y recibir cookies
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authToken && { Authorization: `Bearer ${authToken}` }),
-      ...options.headers,
-    },
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(authToken && { Authorization: `Bearer ${authToken}` }),
+    ...options.headers,
   };
 
   try {
-    const response = await fetch(url, csrfOptions);
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
     if (!response.ok) {
       let errorMessage = `Error ${response.status}: ${response.statusText}`;
@@ -73,23 +71,62 @@ export const fetchApi = async (
 // Función para manejar la autenticación
 export const loginUser = async (email: string, password: string) => {
   try {
-    const response = await fetch(`${API_URL}/auth/login/`, {
+    const response = await fetchApi('/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ email, password }),
-      credentials: 'include',
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Error al iniciar sesión');
-    }
-
-    return await response.json();
+    // Retornar explícitamente user y token
+    return {
+      user: response.user,
+      token: response.token,
+      error: response.error
+    };
   } catch (error) {
     console.error('Login failed:', error);
+    throw error;
+  }
+};
+
+// Función para registrar usuario
+export const registerUser = async (userData: any) => {
+  try {
+    const response = await fetchApi('/user', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+
+    return response;
+  } catch (error) {
+    console.error('Registration failed:', error);
+    throw error;
+  }
+};
+
+// Función para verificar usuario
+export const verifyUser = async (email: string, code: string) => {
+  try {
+    // Primero obtenemos el usuario por email
+    const users = await fetchApi('/user', { method: 'GET' });
+    const user = users.find((u: any) => u.email === email);
+    if (!user) throw new Error('Usuario no encontrado');
+
+    // Hacemos POST a /auth/verify
+    const response = await fetchApi('/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: user.id, code }),
+    });
+
+    if (response.success) {
+      // Actualizamos el estado de verificación del usuario
+      await fetchApi(`/user/${user.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ verified: 1 }),
+      });
+      return { success: true };
+    } else {
+      throw new Error(response.error || 'Código de verificación incorrecto');
+    }
+  } catch (error) {
     throw error;
   }
 };

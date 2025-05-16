@@ -24,20 +24,20 @@ def send_auth_email(token=None):
         print(f"Código a enviar: {token}")
 
         # Inicializar el cliente de email con la API key
-        api_key = "mlsn.9b7fb78a68cb11e86a15ed75e1ae64f3f067292cad5a3c5fb6b911d907f7a9b7"
+        api_key = "mlsn.d872473062109acfec97c7ba199179c59ef8fd194070f4d0bc92f46be101e650"
         
         mailer = emails.NewEmail(api_key)
         mail_body = {}
 
         mail_from = {
-            "name": "Sistema de Autenticación",
-            "email": "MS_uYWDqH@test-vz9dlemm0k64kj50.mlsender.net",
+            "name": "Resolution",
+            "email": "MS_EOJlqh@test-65qngkd23mdlwr12.mlsender.net",
         }
 
         recipients = [
             {
                 "name": "Usuario",
-                "email": "dylansantiagordriguez.p@gmail.com",
+                "email": "makabeuz6618@gmail.com",
             }
         ]
 

@@ -8,6 +8,7 @@ export interface Request {
   subject: string;
   description: string;
   status: string;
+  created_at?: string;
 }
 
 export const requestsService = {
@@ -30,18 +31,21 @@ export const requestsService = {
 
   getAllRequests: async (userId: number): Promise<Request[]> => {
     try {
-      const response = await fetchApi(`/request?userId=${userId}`, {
+      const response = await fetchApi(`/request/user/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-
       return response;
     } catch (error) {
       console.error('Error fetching requests:', error);
       throw error;
     }
+  },
+
+  getRequestById: async (id: number, token?: string) => {
+    return await fetchApi(`/request/${id}`, { method: 'GET' }, token);
   },
 };
 

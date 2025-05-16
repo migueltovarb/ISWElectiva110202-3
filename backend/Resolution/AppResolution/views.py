@@ -154,6 +154,36 @@ class AuthenticationView(APIView):
         serializer = authentication_serializer(auth_records, many=True)
         return Response(serializer.data)
     
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        input_code = request.data.get('code')
+        if not user_id or not input_code:
+            return Response({'error': 'Faltan datos'}, status=400)
+        try:
+            auth_record = Authentication.objects.filter(user_id=user_id).order_by('-id').first()
+            if not auth_record:
+                return Response({'error': 'No se encontró código para este usuario'}, status=404)
+            if str(auth_record.token) == str(input_code):
+                user = User.objects.get(id=user_id)
+                user.verified = 1
+                user.save()
+                # Crear perfil si no existe y asignar al usuario
+                if not user.profile:
+                    perfil = Profile.objects.create(
+                        first_name=user.first_name,
+                        last_name=user.last_name,
+                        email=user.email,
+                        phone=user.phone or '',
+                        password='',
+                        photo=''
+                    )
+                    user.profile = perfil
+                    user.save()
+                return Response({'success': True})
+            else:
+                return Response({'success': False, 'error': 'Código incorrecto'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
    
 #reclamo
 class ClaimView(APIView):
@@ -419,7 +449,8 @@ class LoginView(APIView):
                             "phone": user.phone,
                             "verified": user.verified
                         },
-                        "profile": profile_data
+                        "profile": profile_data,
+                        "token": "dummy-token"
                     }, status=status.HTTP_200_OK)
                 else:
                     return Response({"error": "Usuario no verificado"}, status=status.HTTP_401_UNAUTHORIZED)
