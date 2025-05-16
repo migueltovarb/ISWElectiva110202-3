@@ -94,58 +94,7 @@ class UserView(APIView):
     
 #auth
 class AuthenticationView(APIView):
-    def post(self, request, pkid=None):
-        request_data = request.data[0] if isinstance(request.data, list) else request.data
-        try:
-            # Si se proporciona un pkid en la URL, usarlo como user_id
-            user_id = pkid if pkid else int(request_data.get('user'))
-            
-            if not user_id:
-                return Response({"error": "Se requiere el ID del usuario"}, status=status.HTTP_400_BAD_REQUEST)
-                
-            user = User.objects.get(id=user_id)
-            
-            # Verificar si ya existe un registro de autenticación para este usuario
-            try:
-                existing_auth = Authentication.objects.get(user_id=user_id)
-                return Response({
-                    "error": "Ya existe un registro de autenticación para este usuario. Use PUT para actualizar el token."
-                }, status=status.HTTP_400_BAD_REQUEST)
-            except Authentication.DoesNotExist:
-                # Si no existe, continuar con la creación
-                pass
-            
-            # Generar código de autenticación automáticamente
-            verification_code = generate_auth_code()
-            
-            data = {
-                'user': user_id,
-                'token': verification_code,
-            }
-            serializer = authentication_serializer(data=data)
-            if serializer.is_valid():
-                auth_record = serializer.save()
-                
-                # Programar la eliminación del token después de 10 minutos
-                delete_auth_token_after_timeout(auth_record.id, timeout_minutes=10)
-                
-                # Enviar el código por correo electrónico inmediatamente
-                send_auth_email(verification_code)
-                
-                return Response({
-                    "message": "Código de verificación enviado. Expirará en 10 minutos.",
-                    "data": serializer.data,
-                    "auth_code": get_latest_auth_code(), # Incluir el código en la respuesta
-                    "expires_in": "10 minutos"
-                }, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        except (ValueError, TypeError):
-            return Response({"error": "ID de usuario inválido. Debe ser un número."}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
+   
     def get(self, request, pkid=None):
         # Si se proporciona un ID específico (ya sea como pkid en URL o como query param)
         user_id = pkid or request.query_params.get('user_id')
@@ -153,26 +102,29 @@ class AuthenticationView(APIView):
             try:
                 user = User.objects.get(id=user_id)
                 
+                # Primero, buscar y eliminar cualquier registro de autenticación existente para este usuario
+                try:
+                    existing_auth = Authentication.objects.get(user_id=user_id)
+                    existing_auth_id = existing_auth.id  # Guardar el ID para mensaje de depuración
+                    existing_auth.delete()
+                    print(f"Código anterior eliminado para el usuario {user_id} (ID de autenticación: {existing_auth_id})")
+                except Authentication.DoesNotExist:
+                    print(f"No había código anterior para el usuario {user_id}")
+                
                 # Generar un nuevo código de autenticación
                 verification_code = generate_auth_code()
-                print(f"Código generado: {verification_code}")  # Depuración
-                print(f"Código en variable global: {get_latest_auth_code()}")  # Verificar la variable global
+                print(f"Nuevo código generado: {verification_code}")
+                print(f"Código en variable global: {get_latest_auth_code()}")
                 
-                # Intentar obtener o crear un registro de autenticación
-                try:
-                    auth_record = Authentication.objects.get(user_id=user_id)
-                    # Actualizar el token con el nuevo código
-                    auth_record.token = get_latest_auth_code()
-                    auth_record.save()
-                except Authentication.DoesNotExist:
-                    # Crear un nuevo registro
-                    auth_record = Authentication.objects.create(
-                        user_id=user_id,
-                        token=get_latest_auth_code()
-                    )
+                # Crear un nuevo registro de autenticación
+                auth_record = Authentication.objects.create(
+                    user_id=user_id,
+                    token=get_latest_auth_code()
+                )
                 
                 # Programar la eliminación del token después de 10 minutos
                 delete_auth_token_after_timeout(auth_record.id, timeout_minutes=10)
+                print(f"Programada eliminación del nuevo token (ID: {auth_record.id}) en 10 minutos")
                 
                 # Enviar el código por correo electrónico
                 try:
@@ -182,19 +134,19 @@ class AuthenticationView(APIView):
                     print(f"Error al enviar correo: {str(e)}")
                     # Continuamos incluso si falla el envío de correo
                 
-                # Devolver solo este registro
+                # Devolver el nuevo registro
                 serializer = authentication_serializer(auth_record)
                 return Response({
-                    "message": "Código de verificación generado y enviado. Expirará en 10 minutos.",
+                    "message": "Código anterior eliminado. Nuevo código generado y enviado. Expirará en 10 minutos.",
                     "data": serializer.data,
-                    "auth_code": get_latest_auth_code(),  # Incluir el código en la respuesta
+                    "auth_code": get_latest_auth_code(),
                     "expires_in": "10 minutos"
                 }, status=status.HTTP_200_OK)
                 
             except User.DoesNotExist:
                 return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
-                print(f"Error general: {str(e)}")  # Depuración
+                print(f"Error general: {str(e)}")
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
         # Si no hay ID de usuario, devolver todos los registros
@@ -202,106 +154,7 @@ class AuthenticationView(APIView):
         serializer = authentication_serializer(auth_records, many=True)
         return Response(serializer.data)
     
-    def put(self, request, pkid=None):
-        try:
-            # Si se proporciona un ID, actualizar un registro específico
-            if pkid:
-                try:
-                    auth_record = Authentication.objects.get(id=pkid)
-                    # Generar un nuevo código de autenticación
-                    new_verification_code = generate_auth_code()
-                    
-                    # Actualizar el token existente
-                    auth_record.token = new_verification_code
-                    auth_record.save()
-                    
-                    # Programar la eliminación del token después de 10 minutos
-                    delete_auth_token_after_timeout(auth_record.id, timeout_minutes=10)
-                    
-                    # Enviar el nuevo código por correo electrónico
-                    send_auth_email(new_verification_code)
-                    
-                    return Response({
-                        "message": "Código de verificación actualizado y enviado. Expirará en 10 minutos.",
-                        "data": authentication_serializer(auth_record).data,
-                        "auth_code": get_latest_auth_code(),  # Incluir el código en la respuesta
-                        "expires_in": "10 minutos"
-                    }, status=status.HTTP_200_OK)
-                except Authentication.DoesNotExist:
-                    return Response({"error": "Registro de autenticación no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-            else:
-                # Si no se proporciona ID, usar el ID de usuario de la solicitud
-                request_data = request.data[0] if isinstance(request.data, list) else request.data
-                user_id = int(request_data.get('user'))
-                
-                # Verificar que el usuario existe
-                try:
-                    user = User.objects.get(id=user_id)
-                except User.DoesNotExist:
-                    return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-                
-                # Generar un nuevo código de autenticación
-                new_verification_code = generate_auth_code()
-                
-                # Buscar si ya existe un registro de autenticación para este usuario
-                try:
-                    existing_auth = Authentication.objects.get(user_id=user_id)
-                    # Actualizar el token existente
-                    existing_auth.token = new_verification_code
-                    existing_auth.save()
-                    
-                    # Programar la eliminación del token después de 10 minutos
-                    delete_auth_token_after_timeout(existing_auth.id, timeout_minutes=10)
-                    
-                    # Enviar el nuevo código por correo electrónico
-                    send_auth_email(new_verification_code)
-                    
-                    return Response({
-                        "message": "Código de verificación actualizado y enviado. Expirará en 10 minutos.",
-                        "data": authentication_serializer(existing_auth).data,
-                        "auth_code": get_latest_auth_code(),  # Incluir el código en la respuesta
-                        "expires_in": "10 minutos"
-                    }, status=status.HTTP_200_OK)
-                except Authentication.DoesNotExist:
-                    # Si no existe, crear uno nuevo
-                    data = {
-                        'user': user_id,
-                        'token': new_verification_code,
-                    }
-                    serializer = authentication_serializer(data=data)
-                    if serializer.is_valid():
-                        auth_record = serializer.save()
-                        
-                        # Programar la eliminación del token después de 10 minutos
-                        delete_auth_token_after_timeout(auth_record.id, timeout_minutes=10)
-                        
-                        # Enviar el código por correo electrónico
-                        send_auth_email(new_verification_code)
-                        
-                        return Response({
-                            "message": "Código de verificación creado y enviado. Expirará en 10 minutos.",
-                            "data": serializer.data,
-                            "auth_code": get_latest_auth_code(),  # Incluir el código en la respuesta
-                            "expires_in": "10 minutos"
-                        }, status=status.HTTP_201_CREATED)
-                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except (ValueError, TypeError):
-            return Response({"error": "ID de usuario inválido. Debe ser un número."}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-
-
-    def delete(self, request, pkid):
-        try:
-            auth_record = Authentication.objects.get(id=pkid)
-            auth_record.delete()
-            return Response({"message": "Registro de autenticación eliminado exitosamente"}, status=status.HTTP_200_OK)
-        except Authentication.DoesNotExist:
-            return Response({"error": "Registro de autenticación no encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+   
 #reclamo
 class ClaimView(APIView):
     def post(self, request):
