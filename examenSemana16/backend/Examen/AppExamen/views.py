@@ -2,13 +2,21 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.db.models import Prefetch
 from .models import TodoList, Task
 from .serializers import TodoListSerializer, TaskSerializer
 
 # TodoList API
 class TodoListView(APIView):
     def get(self, request):
-        todo_lists = TodoList.objects.all()
+        todo_lists = TodoList.objects.prefetch_related('tasks').all()
+        # Imprimir información de depuración
+        for todo_list in todo_lists:
+            print(f"TodoList ID: {todo_list.id}")
+            print(f"Tasks count: {todo_list.tasks.count()}")
+            for task in todo_list.tasks.all():
+                print(f"Task ID: {task.id}, Title: {task.title}")
+        
         serializer = TodoListSerializer(todo_lists, many=True)
         return Response(serializer.data)
     
@@ -54,17 +62,27 @@ class TaskView(APIView):
         else:
             # Obtener todas las tareas de una lista
             tasks = Task.objects.filter(todo_list_id=todo_list_id)
+            # Imprimir información de depuración
+            print(f"Tasks for TodoList {todo_list_id}:")
+            for task in tasks:
+                print(f"Task ID: {task.id}, Title: {task.title}")
             serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
     
     def post(self, request, todo_list_id):
         todo_list = get_object_or_404(TodoList, id=todo_list_id)
-        request.data['todo_list'] = todo_list.id
-        serializer = TaskSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Crear la tarea directamente con el todo_list
+        task = Task(
+            todo_list=todo_list,
+            title=request.data.get('title'),
+            description=request.data.get('description', ''),
+            completed=request.data.get('completed', False),
+            due_date=request.data.get('due_date')
+        )
+        task.save()
+        print(f"Created task: ID={task.id}, Title={task.title}, TodoList={task.todo_list.id}")
+        serializer = TaskSerializer(task)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def patch(self, request, todo_list_id, task_id):
         task = get_object_or_404(Task, id=task_id, todo_list_id=todo_list_id)
