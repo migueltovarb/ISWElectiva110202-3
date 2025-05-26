@@ -79,15 +79,68 @@ class UserView(APIView):
             return Response({"error": "Se requiere el ID del usuario."}, status=status.HTTP_400_BAD_REQUEST)
         
         user = get_object_or_404(User, pk=pk)
+        request_data = request.data[0] if isinstance(request.data, list) else request.data
 
-        verified_value = request.data.get("verified")
-        if verified_value is None:
-            return Response({"error": "Campo 'verified' requerido."}, status=status.HTTP_400_BAD_REQUEST)
+        # Si solo se está actualizando el campo verified (funcionalidad original)
+        if 'verified' in request_data and len(request_data) == 1:
+            verified_value = request_data.get("verified")
+            if verified_value is None:
+                return Response({"error": "Campo 'verified' requerido."}, status=status.HTTP_400_BAD_REQUEST)
 
+            try:
+                user.verified = int(verified_value)  
+                user.save()
+                return Response({"message": "Verificación actualizada correctamente."}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Si se están actualizando otros campos del perfil
         try:
-            user.verified = int(verified_value)  
+            # Actualizar campos del usuario si están presentes
+            if 'first_name' in request_data:
+                user.first_name = request_data.get('first_name')
+            if 'last_name' in request_data:
+                user.last_name = request_data.get('last_name')
+            if 'email' in request_data:
+                user.email = request_data.get('email')
+            if 'phone' in request_data:
+                user.phone = request_data.get('phone')
+            if 'password' in request_data:
+                user.password = request_data.get('password')
+            
             user.save()
-            return Response({"message": "Verificación actualizada correctamente."}, status=status.HTTP_200_OK)
+            
+            # También actualizar el perfil asociado si existe
+            if hasattr(user, 'profile') and user.profile:
+                profile = user.profile
+                if 'first_name' in request_data:
+                    profile.first_name = request_data.get('first_name')
+                if 'last_name' in request_data:
+                    profile.last_name = request_data.get('last_name')
+                if 'email' in request_data:
+                    profile.email = request_data.get('email')
+                if 'phone' in request_data:
+                    profile.phone = request_data.get('phone')
+                if 'password' in request_data:
+                    profile.password = request_data.get('password')
+                
+                profile.save()
+            
+            # Devolver los datos actualizados del usuario
+            user_data = {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'phone': user.phone,
+                'verified': user.verified
+            }
+            
+            return Response({
+                "message": "Perfil actualizado correctamente.",
+                "user": user_data
+            }, status=status.HTTP_200_OK)
+            
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -349,9 +402,9 @@ class ProfileView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, Status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, pk=None):
+    def patch(self, request, pk=None):
         request_data = request.data[0] if isinstance(request.data, list) else request.data
         
         if not pk:

@@ -42,29 +42,33 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const fetchProfile = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/profile/user/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const perfilData = Array.isArray(res.data) ? res.data[0] : res.data;
+      setProfile(perfilData);
+      setForm({
+        nombre: perfilData.nombre || perfilData.first_name || '',
+        apellido: perfilData.apellido || perfilData.last_name || '',
+        email: perfilData.email || '',
+        telefono: perfilData.telefono || perfilData.phone || '',
+      });
+      setError(''); // Limpiar errores previos
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      setError('No se pudo cargar el perfil');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isClient || !user) return;
-    const fetchProfile = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem('authToken');
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/profile/user/${user.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const perfilData = Array.isArray(res.data) ? res.data[0] : res.data;
-        setProfile(perfilData);
-        setForm({
-          nombre: perfilData.nombre || perfilData.first_name || '',
-          apellido: perfilData.apellido || perfilData.last_name || '',
-          email: perfilData.email || '',
-          telefono: perfilData.telefono || perfilData.phone || '',
-        });
-      } catch (err) {
-        setError('No se pudo cargar el perfil');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProfile();
   }, [user, isClient]);
 
@@ -83,13 +87,27 @@ export default function ProfilePage() {
     setSuccess('');
     try {
       const token = localStorage.getItem('authToken');
-      // Actualizar el perfil de usuario con PUT a la API correcta
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/profile/${user.id}`, form, {
+      
+      // Mapear los campos del formulario a los nombres que espera el backend
+      const updateData = {
+        first_name: form.nombre,
+        last_name: form.apellido,
+        email: form.email,
+        phone: form.telefono
+      };
+      
+      // Actualizar el perfil de usuario con PATCH a la API correcta
+      await axios.patch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/user/${user.id}`, updateData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setProfile({ ...profile, ...form });
+      
       setSuccess('Perfil actualizado correctamente');
+      
+      // Recargar el perfil para obtener los datos actualizados
+      await fetchProfile();
+      
     } catch (err) {
+      console.error('Error updating profile:', err);
       setError('No se pudo actualizar el perfil');
     } finally {
       setSaving(false);
