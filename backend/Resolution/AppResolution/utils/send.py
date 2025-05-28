@@ -37,7 +37,7 @@ def send_auth_email(token=None):
         recipients = [
             {
                 "name": "Usuario",
-                "email": "makabeuz6618@gmail.com",
+                "email": "dylansantiagorodriguez.p8@gmail.com",
             }
         ]
 

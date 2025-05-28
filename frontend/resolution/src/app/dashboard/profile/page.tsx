@@ -47,7 +47,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/profile/user/${user.id}`, {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/user/${user.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const perfilData = Array.isArray(res.data) ? res.data[0] : res.data;

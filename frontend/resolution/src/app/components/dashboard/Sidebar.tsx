@@ -17,6 +17,10 @@ const Sidebar = () => {
     { name: 'Configuración', path: '/dashboard/settings', icon: '⚙️' },
   ];
 
+  // Agregar el panel de administrador solo para usuarios admin
+  const adminMenuItem = { name: 'Panel Admin', path: '/dashboard/admin', icon: '👑' };
+  const allMenuItems = user?.is_admin ? [...menuItems, adminMenuItem] : menuItems;
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
@@ -49,7 +53,7 @@ const Sidebar = () => {
       </div>
       <nav>
         <ul className="space-y-2">
-          {menuItems.map((item) => (
+          {allMenuItems.map((item) => (
             <li key={item.path}>
               <Link
                 href={item.path}
