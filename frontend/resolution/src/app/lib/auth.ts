@@ -19,7 +19,9 @@ export interface RegisterData {
   last_name: string;
   email: string;
   password: string;
-  phone?: string;
+  phone: string;
+  verified: number;
+  is_admin: boolean;
 }
 
 export interface LoginResponse {
@@ -30,6 +32,7 @@ export interface LoginResponse {
 export interface VerificationResponse {
   success: boolean;
   error?: string;
+  token?: string;
 }
 
 export const authService = {
@@ -41,10 +44,15 @@ export const authService = {
     return loginUser(email, password);
   },
 
-  createAuthToken: async (userId: number): Promise<any> => {
-    return fetchApi(`/auth?user_id=${userId}`, {
+  createAuthToken: async (userId: number): Promise<{ token?: string }> => {
+    const response = await fetchApi(`/auth?user_id=${userId}`, {
       method: 'GET',
     });
+    
+    // El backend devuelve el token en auth_code
+    const token = response.auth_code || response.token;
+    
+    return { token };
   },
 
   verifyUser: async (email: string, code: string): Promise<VerificationResponse> => {
@@ -59,6 +67,34 @@ export const authService = {
     }
   },
 
+  resetPassword: async (email: string, token: string, newPassword: string): Promise<{ message: string }> => {
+    try {
+      // First get the user by email
+      const users = await fetchApi('/user', { method: 'GET' });
+      const user = users.find((u: User) => u.email === email);
+      if (!user) throw new Error('Usuario no encontrado');
+
+      // Verify the token and update password
+      const response = await fetchApi('/auth', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: user.id, code: token }),
+      });
+
+      if (response.success) {
+        // Update user password
+        await fetchApi(`/user/${user.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ password: newPassword }),
+        });
+        return { message: 'Contraseña actualizada exitosamente' };
+      } else {
+        throw new Error('Código de verificación inválido');
+      }
+    } catch (error) {
+      throw error;
+    }
+  },
+
   resendVerificationCode: async (email: string): Promise<VerificationResponse> => {
     try {
       const users = await fetchApi('/user', { method: 'GET' });
@@ -68,11 +104,17 @@ export const authService = {
         return { success: false, error: 'Usuario no encontrado' };
       }
       
-      await fetchApi(`/auth?user_id=${user.id}`, {
+      const response = await fetchApi(`/auth?user_id=${user.id}`, {
         method: 'GET',
       });
       
-      return { success: true };
+      // El backend devuelve el token en auth_code
+      const token = response.auth_code || response.token;
+      
+      return { 
+        success: true, 
+        token: token 
+      };
     } catch (error) {
       return { 
         success: false, 

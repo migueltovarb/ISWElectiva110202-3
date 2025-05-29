@@ -159,6 +159,17 @@ class UserView(APIView):
             
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def delete(self,request,pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID del usuario"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(pk=pk)
+            user.delete()
+            return Response({"message": "Usuario eliminado correctamente"}, status=status.HTTP_200_OK)  
+        except User.DoesNotExist:
+            return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     
 #auth
@@ -197,7 +208,7 @@ class AuthenticationView(APIView):
                 
                 # Enviar el código por correo electrónico
                 try:
-                    send_auth_email(get_latest_auth_code())
+                    send_auth_email(get_latest_auth_code(), user.email)
                     print(f"Correo enviado con éxito con código: {get_latest_auth_code()}")
                 except Exception as e:
                     print(f"Error al enviar correo: {str(e)}")
@@ -692,3 +703,4 @@ class AdminView(APIView):
                 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+

@@ -110,18 +110,13 @@ export const verifyUser = async (email: string, code: string) => {
     const user = users.find((u: any) => u.email === email);
     if (!user) throw new Error('Usuario no encontrado');
 
-    // Hacemos POST a /auth/verify
-    const response = await fetchApi('/auth/verify', {
+    // Hacemos POST a /auth (según el backend AuthenticationView.post)
+    const response = await fetchApi('/auth', {
       method: 'POST',
       body: JSON.stringify({ user_id: user.id, code }),
     });
 
     if (response.success) {
-      // Actualizamos el estado de verificación del usuario
-      await fetchApi(`/user/${user.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ verified: 1 }),
-      });
       return { success: true };
     } else {
       throw new Error(response.error || 'Código de verificación incorrecto');
