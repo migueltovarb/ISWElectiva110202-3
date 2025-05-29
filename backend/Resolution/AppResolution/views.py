@@ -326,7 +326,17 @@ class ClaimView(APIView):
             return Response({"error": "Reclamo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+    def delete(self,request,pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID del reclamo"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            claim = Claim.objects.get(pk=pk)
+            claim.delete()
+            return Response({"message": "Reclamo eliminado correctamente"}, status=status.HTTP_200_OK)
+        except Claim.DoesNotExist:
+            return Response({"error": "Reclamo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 #solicitud
 class RequestView(APIView):
     def post(self, request):
@@ -395,6 +405,17 @@ class RequestView(APIView):
             req.save()
             serializer = request_serializer(req)
             return Response(serializer.data, status=status.HTTP_200_OK)
+        except Request.DoesNotExist:
+            return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def delete(self, request, pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID de la solicitud"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            req = Request.objects.get(pk=pk)
+            req.delete()
+            return Response({"message": "Solicitud eliminada correctamente"}, status=status.HTTP_200_OK)
         except Request.DoesNotExist:
             return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:

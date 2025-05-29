@@ -16,6 +16,7 @@ export default function RequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const { user } = useAuth();
   const isClient = useIsClient();
 
@@ -33,6 +34,27 @@ export default function RequestsPage() {
     };
     fetchRequests();
   }, [user, isClient]);
+
+  const handleDelete = async (requestId: number, requestSubject: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar la solicitud "${requestSubject}"?`)) {
+      return;
+    }
+
+    setDeletingIds(prev => new Set(prev).add(requestId));
+    
+    try {
+      await requestsService.deleteRequest(requestId);
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar la solicitud');
+    } finally {
+      setDeletingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+    }
+  };
 
   if (!isClient || !user) return <div className="text-center py-8">Cargando solicitudes...</div>;
   if (loading) return <div className="text-center py-8">Cargando solicitudes...</div>;
@@ -52,9 +74,9 @@ export default function RequestsPage() {
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <ul className="divide-y divide-gray-200">
           {requests.map((request) => (
-            <li key={request.id}>
-              <Link href={`/dashboard/requests/${request.id}`} className="block hover:bg-gray-50">
-                <div className="px-4 py-4 sm:px-6">
+            <li key={request.id} className="relative">
+              <div className="px-4 py-4 sm:px-6 flex items-center justify-between">
+                <Link href={`/dashboard/requests/${request.id}`} className="block hover:bg-gray-50 flex-1">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-blue-600 truncate">{request.subject}</p>
                     <div className="ml-2 flex-shrink-0 flex">
@@ -71,8 +93,19 @@ export default function RequestsPage() {
                       <FechaCreacion date={request.created_at} />
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (request.id) handleDelete(request.id, request.subject);
+                  }}
+                  disabled={deletingIds.has(request.id || 0)}
+                  className="ml-4 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deletingIds.has(request.id || 0) ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

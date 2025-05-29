@@ -14,7 +14,6 @@ const Sidebar = () => {
     { name: 'Reclamos', path: '/dashboard/claims', icon: '📝' },
     { name: 'Solicitudes', path: '/dashboard/requests', icon: '📋' },
     { name: 'Reportes', path: '/dashboard/reports', icon: '📈' },
-    { name: 'Configuración', path: '/dashboard/settings', icon: '⚙️' },
   ];
 
   // Agregar el panel de administrador solo para usuarios admin

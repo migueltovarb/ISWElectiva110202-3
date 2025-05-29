@@ -10,6 +10,7 @@ export default function ClaimsPage() {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const { user } = useAuth();
   const isClient = useIsClient();
 
@@ -27,6 +28,27 @@ export default function ClaimsPage() {
     };
     fetchClaims();
   }, [user, isClient]);
+
+  const handleDelete = async (claimId: number, claimSubject: string) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar el reclamo "${claimSubject}"?`)) {
+      return;
+    }
+
+    setDeletingIds(prev => new Set(prev).add(claimId));
+    
+    try {
+      await claimsService.deleteClaim(claimId);
+      setClaims(prev => prev.filter(claim => claim.id !== claimId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar el reclamo');
+    } finally {
+      setDeletingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(claimId);
+        return newSet;
+      });
+    }
+  };
 
   if (!isClient || !user) return <div className="text-center py-8">Cargando reclamos...</div>;
   if (loading) return <div className="text-center py-8">Cargando reclamos...</div>;
@@ -48,9 +70,9 @@ export default function ClaimsPage() {
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <ul className="divide-y divide-gray-200">
           {claims.map((claim) => (
-            <li key={claim.id}>
-              <Link href={`/dashboard/claims/${claim.id}`} className="block hover:bg-gray-50">
-                <div className="px-4 py-4 sm:px-6">
+            <li key={claim.id} className="relative">
+              <div className="px-4 py-4 sm:px-6 flex items-center justify-between">
+                <Link href={`/dashboard/claims/${claim.id}`} className="block hover:bg-gray-50 flex-1">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-blue-600 truncate">{claim.subject}</p>
                     <div className="ml-2 flex-shrink-0 flex">
@@ -75,8 +97,19 @@ export default function ClaimsPage() {
                       <FechaCreacion date={claim.created_at} />
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (claim.id) handleDelete(claim.id, claim.subject);
+                  }}
+                  disabled={deletingIds.has(claim.id || 0)}
+                  className="ml-4 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deletingIds.has(claim.id || 0) ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
