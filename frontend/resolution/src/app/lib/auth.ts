@@ -74,22 +74,28 @@ export const authService = {
       const user = users.find((u: User) => u.email === email);
       if (!user) throw new Error('Usuario no encontrado');
 
-      // Verify the token and update password
-      const response = await fetchApi('/auth', {
-        method: 'POST',
-        body: JSON.stringify({ user_id: user.id, code: token }),
-      });
-
-      if (response.success) {
-        // Update user password
-        await fetchApi(`/user/${user.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ password: newPassword }),
+      // Verify the token using PUT method (doesn't update verified field)
+      try {
+        const authResponse = await fetchApi('/auth', {
+          method: 'PUT',
+          body: JSON.stringify({ user_id: user.id, code: token }),
         });
-        return { message: 'Contraseña actualizada exitosamente' };
-      } else {
-        throw new Error('Código de verificación inválido');
+
+        // Si la verificación del token falla, lanzar error
+        if (!authResponse.success) {
+          throw new Error('Código de verificación inválido o expirado');
+        }
+      } catch (error) {
+        throw new Error('Código de verificación inválido o expirado');
       }
+
+      // If token is valid, update user password
+      await fetchApi(`/user/${user.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ password: newPassword }),
+      });
+      
+      return { message: 'Contraseña actualizada exitosamente' };
     } catch (error) {
       throw error;
     }
@@ -119,6 +125,36 @@ export const authService = {
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Error al reenviar el código' 
+      };
+    }
+  },
+
+  requestPasswordRecovery: async (email: string): Promise<{ success: boolean; message?: string; error?: string; token?: string }> => {
+    try {
+      const users = await fetchApi('/user', { method: 'GET' });
+      const user = users.find((u: User) => u.email === email);
+      
+      if (!user) {
+        return { success: false, error: 'No se encontró una cuenta con este correo electrónico' };
+      }
+      
+      // Generar un nuevo token de recuperación usando la misma ruta que para verificación
+      const response = await fetchApi(`/auth?user_id=${user.id}`, {
+        method: 'GET',
+      });
+      
+      // El backend devuelve el token en auth_code
+      const token = response.auth_code || response.token;
+      
+      return { 
+        success: true, 
+        message: 'Se ha enviado un código de recuperación a tu correo electrónico',
+        token: token 
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Error al solicitar la recuperación de contraseña' 
       };
     }
   },

@@ -20,11 +20,17 @@ export default function ForgotPasswordPage() {
 
     try {
       const response = await authService.requestPasswordRecovery(email);
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Error al solicitar la recuperación de contraseña');
+      }
+      
       setMessage(response.message || 'Se ha enviado un código de recuperación a tu email.');
       
-      // Redirigir a la página de reset después de un momento
+      // Redirigir a la página de reset con el email y token
       setTimeout(() => {
-        router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`);
+        const resetUrl = `/auth/reset-password?email=${encodeURIComponent(email)}${response.token ? `&token=${encodeURIComponent(response.token)}` : ''}`;
+        router.push(resetUrl);
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al solicitar la recuperación de contraseña');

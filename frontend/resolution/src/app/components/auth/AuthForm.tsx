@@ -164,6 +164,13 @@ export default function AuthForm({ type }: AuthFormProps) {
           value={formData.password}
           onChange={handleChange}
         />
+        {type === 'login' && (
+          <div className="mt-2 text-right">
+            <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+        )}
       </div>
 
       {type === 'register' && (

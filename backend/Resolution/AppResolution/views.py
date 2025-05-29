@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import timedelta
 import threading
 import time
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 
 #creates
 #usuario
@@ -118,7 +118,8 @@ class UserView(APIView):
             if 'phone' in request_data:
                 user.phone = request_data.get('phone')
             if 'password' in request_data:
-                user.password = request_data.get('password')
+                # Hashear la contraseña antes de guardarla
+                user.password = make_password(request_data.get('password'))
             if 'is_admin' in request_data:
                 user.is_admin = request_data.get('is_admin')
             user.save()
@@ -135,7 +136,8 @@ class UserView(APIView):
                 if 'phone' in request_data:
                     profile.phone = request_data.get('phone')
                 if 'password' in request_data:
-                    profile.password = request_data.get('password')
+                    # Hashear la contraseña antes de guardarla en el perfil
+                    profile.password = make_password(request_data.get('password'))
                 if 'is_admin' in request_data:
                     profile.is_admin = request_data.get('is_admin')
                 
@@ -260,6 +262,25 @@ class AuthenticationView(APIView):
                     user.profile = perfil
                     user.save()
                 return Response({'success': True})
+            else:
+                return Response({'success': False, 'error': 'Código incorrecto'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+    def put(self, request):
+        """
+        Verifica el token sin actualizar el campo verified (para recuperación de contraseña)
+        """
+        user_id = request.data.get('user_id')
+        input_code = request.data.get('code')
+        if not user_id or not input_code:
+            return Response({'error': 'Faltan datos'}, status=400)
+        try:
+            auth_record = Authentication.objects.filter(user_id=user_id).order_by('-id').first()
+            if not auth_record:
+                return Response({'error': 'No se encontró código para este usuario'}, status=404)
+            if str(auth_record.token) == str(input_code):
+                return Response({'success': True, 'message': 'Token válido'})
             else:
                 return Response({'success': False, 'error': 'Código incorrecto'}, status=400)
         except Exception as e:
@@ -470,10 +491,11 @@ class ProfileView(APIView):
                 profile.last_name = request_data.get('last_name')
             if 'email' in request_data:
                 profile.email = request_data.get('email')
-            if 'password' in request_data:
-                profile.password = request_data.get('password')
             if 'phone' in request_data:
                 profile.phone = request_data.get('phone')
+            if 'password' in request_data:
+                # Hashear la contraseña antes de guardarla en el perfil
+                profile.password = make_password(request_data.get('password'))
             if 'photo' in request_data:
                 profile.photo = request_data.get('photo')
             
