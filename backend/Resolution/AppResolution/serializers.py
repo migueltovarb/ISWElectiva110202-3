@@ -6,7 +6,7 @@ class user_serializer(serializers.ModelSerializer):
     profile = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'password', 'phone', 'verified', 'profile']
+        fields = ['id', 'first_name', 'last_name', 'email', 'password', 'phone', 'verified', 'is_admin', 'profile']
         extra_kwargs = {
             'password': {'write_only': True},
             'verified': {'read_only': 1}  

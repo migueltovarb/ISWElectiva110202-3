@@ -36,20 +36,23 @@ export default function AuthForm({ type }: AuthFormProps) {
         // Desestructurar para excluir confirmPassword
         const { first_name, last_name, email, password, phone } = formData;
         
-        // Asegurarnos de que los datos estén en el formato correcto
+        // Asegurarnos de que los datos estén en el formato correcto según la estructura requerida
         const formattedData = {
           first_name,
           last_name,
           email,
           password,
-          phone: phone || '', // Si no hay teléfono, enviamos string vacío
+          phone, // Enviar el teléfono tal como está
+          verified: 0, // Todos los usuarios se crean sin verificar
+          is_admin: false // Todos los usuarios se crean como no administradores
         };
 
         const user = await authService.register(formattedData);
         
         if (user) {
-          await authService.createAuthToken(user.id);
-          router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
+          const { token } = await authService.createAuthToken(user.id);
+          const verifyUrl = `/auth/verify?email=${encodeURIComponent(formData.email)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+          router.push(verifyUrl);
         }
       } else {
         const { user, token } = await authService.login(formData.email, formData.password);
@@ -124,6 +127,7 @@ export default function AuthForm({ type }: AuthFormProps) {
               id="phone"
               name="phone"
               type="tel"
+              required
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={formData.phone}
               onChange={handleChange}
@@ -160,6 +164,13 @@ export default function AuthForm({ type }: AuthFormProps) {
           value={formData.password}
           onChange={handleChange}
         />
+        {type === 'login' && (
+          <div className="mt-2 text-right">
+            <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+        )}
       </div>
 
       {type === 'register' && (

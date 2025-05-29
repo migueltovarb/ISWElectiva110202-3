@@ -11,9 +11,9 @@ idna==3.10
 mailersend==0.5.8
 mysqlclient==2.2.7
 pillow==11.1.0
+psycopg2-binary==2.9.10
 python-dotenv==1.1.0
 requests==2.32.3
 sqlparse==0.5.3
 tzdata==2025.2
 urllib3==2.4.0
-psycopg2-binary==2.9.10
