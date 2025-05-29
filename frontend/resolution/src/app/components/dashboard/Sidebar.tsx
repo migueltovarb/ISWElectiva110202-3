@@ -13,12 +13,16 @@ const Sidebar = () => {
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Reclamos', path: '/dashboard/claims', icon: '📝' },
     { name: 'Solicitudes', path: '/dashboard/requests', icon: '📋' },
-    { name: 'Reportes', path: '/dashboard/reports', icon: '📈' },
   ];
 
-  // Agregar el panel de administrador solo para usuarios admin
-  const adminMenuItem = { name: 'Panel Admin', path: '/dashboard/admin', icon: '👑' };
-  const allMenuItems = user?.is_admin ? [...menuItems, adminMenuItem] : menuItems;
+  // Elementos del menú para administradores
+  const adminMenuItems = [
+    { name: 'Panel Admin', path: '/dashboard/admin', icon: '👑' },
+    { name: 'Reportes', path: '/dashboard/admin/reports', icon: '📈' },
+  ];
+
+  // Agregar elementos de administrador solo para usuarios admin
+  const allMenuItems = user?.is_admin ? [...menuItems, ...adminMenuItems] : menuItems;
 
   const handleLogout = () => {
     localStorage.removeItem('user');

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from AppResolution.views import UserView, ClaimView, RequestView, ProfileView, AuthenticationView, LoginView, AdminView
+from AppResolution.views import UserView, ClaimView, RequestView, ProfileView, AuthenticationView, LoginView, AdminView, ReportsView
 
 urlpatterns = [
     # User endpoints
@@ -32,4 +32,7 @@ urlpatterns = [
     
     # Admin endpoints
     path('admin', AdminView.as_view()),
+    
+    # Reports endpoints
+    path('reports/', ReportsView.as_view()),
 ]

@@ -726,3 +726,138 @@ class AdminView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+# Panel de reportes para administradores
+class ReportsView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """
+        Obtener estadísticas detalladas de solicitudes y reclamos para reportes
+        """
+        try:
+            # Verificar si el usuario es administrador
+            user_id = request.GET.get('user_id')  # Changed from request.query_params.get('user_id')
+            if not user_id:
+                return Response({"error": "Se requiere user_id"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                user = User.objects.get(id=user_id)
+                if not user.is_admin:
+                    return Response({"error": "Acceso denegado. Solo administradores."}, status=status.HTTP_403_FORBIDDEN)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Obtener todas las solicitudes y reclamos
+            claims = Claim.objects.all()
+            requests = Request.objects.all()
+            
+            # Estadísticas de reclamos
+            claims_stats = {
+                'total': claims.count(),
+                'pendiente': claims.filter(status__iexact='pendiente').count(),
+                'en_proceso': claims.filter(status__iexact='en proceso').count(),
+                'completado': claims.filter(status__iexact='completado').count(),
+            }
+            
+            # Estadísticas de solicitudes
+            requests_stats = {
+                'total': requests.count(),
+                'pendiente': requests.filter(status__iexact='pendiente').count(),
+                'en_proceso': requests.filter(status__iexact='en proceso').count(),
+                'completado': requests.filter(status__iexact='completado').count(),
+            }
+            
+            # Datos para gráficas por fecha (últimos 30 días)
+            from datetime import timedelta
+            
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=29)  # 30 días incluyendo hoy
+            
+            # Generar lista de fechas para los últimos 30 días
+            date_range = []
+            current_date = start_date
+            while current_date <= end_date:
+                date_range.append(current_date.strftime('%Y-%m-%d'))
+                current_date += timedelta(days=1)
+            
+            # Obtener datos de reclamos y solicitudes en el rango de fechas
+            claims_in_range = claims.filter(
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date
+            )
+            
+            requests_in_range = requests.filter(
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date
+            )
+            
+            # Organizar datos para gráficas
+            claims_chart_data = {}
+            requests_chart_data = {}
+            
+            # Inicializar datos para cada fecha
+            for date_str in date_range:
+                claims_chart_data[date_str] = {
+                    'pendiente': 0,
+                    'en_proceso': 0,
+                    'completado': 0,
+                    'total': 0
+                }
+                requests_chart_data[date_str] = {
+                    'pendiente': 0,
+                    'en_proceso': 0,
+                    'completado': 0,
+                    'total': 0
+                }
+            
+            # Procesar reclamos
+            for claim in claims_in_range:
+                date_str = claim.created_at.date().strftime('%Y-%m-%d')
+                status_value = (claim.status or 'pendiente').lower()
+                
+                if date_str in claims_chart_data:
+                    if status_value in claims_chart_data[date_str]:
+                        claims_chart_data[date_str][status_value] += 1
+                    claims_chart_data[date_str]['total'] += 1
+            
+            # Procesar solicitudes
+            for req in requests_in_range:
+                date_str = req.created_at.date().strftime('%Y-%m-%d')
+                status_value = (req.status or 'pendiente').lower()
+                
+                if date_str in requests_chart_data:
+                    if status_value in requests_chart_data[date_str]:
+                        requests_chart_data[date_str][status_value] += 1
+                    requests_chart_data[date_str]['total'] += 1
+            
+            # Convertir a formato de array para gráficas
+            claims_chart_array = []
+            requests_chart_array = []
+            
+            for date_str in date_range:
+                claims_chart_array.append({
+                    'date': date_str,
+                    **claims_chart_data[date_str]
+                })
+                requests_chart_array.append({
+                    'date': date_str,
+                    **requests_chart_data[date_str]
+                })
+            
+            return Response({
+                "claims_stats": claims_stats,
+                "requests_stats": requests_stats,
+                "claims_chart_data": claims_chart_array,
+                "requests_chart_data": requests_chart_array,
+                "date_range": {
+                    "start_date": start_date.strftime('%Y-%m-%d'),
+                    "end_date": end_date.strftime('%Y-%m-%d')
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import traceback
+            print(f"Error en ReportsView: {str(e)}")
+            print(traceback.format_exc())
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
