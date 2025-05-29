@@ -10,10 +10,9 @@ import QuickAction from '../components/dashboard/QuickAction';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { user } = useAuth(); // Usuario autenticado
+  const { user } = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
-  const [userId, setUserId] = useState<string | null>(null); // Guardar ID del usuario
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -21,17 +20,12 @@ export default function DashboardPage() {
     const fetchData = async () => {
       try {
         if (!user) return;
-          setUserId(user.id.toString());
 
-          // Peticiones sin token
-          const [claimsData, requestsData] = await Promise.all([
-            claimsService.getAllClaims(user.id),  // Pasar solo el user.id
-            requestsService.getAllRequests(user.id)  // Pasar solo el user.id
-          ]);
-
-          setClaims(claimsData);
-          setRequests(requestsData);
-
+        // Obtener datos específicos del usuario
+        const [claimsData, requestsData] = await Promise.all([
+          claimsService.getAllClaims(user.id),
+          requestsService.getAllRequests(user.id)
+        ]);
 
         setClaims(claimsData);
         setRequests(requestsData);
@@ -48,11 +42,74 @@ export default function DashboardPage() {
   if (loading) return <div className="text-center py-8">Cargando dashboard...</div>;
   if (error) return <div className="text-red-500 text-center py-8">Error: {error}</div>;
 
-  const pendingClaims = claims.filter(c => c.status === 'pending').length;
-  const pendingRequests = requests.filter(r => r.status === 'pending').length;
+  // Normalizar estados para comparación (case-insensitive)
+  const normalizeStatus = (status: string) => status.toLowerCase();
 
-  const recentClaims = claims.slice(0, 3);
-  const recentRequests = requests.slice(0, 3);
+  // Estadísticas de reclamos
+  const pendingClaims = claims.filter(c => normalizeStatus(c.status) === 'pendiente').length;
+  const inProgressClaims = claims.filter(c => normalizeStatus(c.status) === 'en proceso').length;
+  const completedClaims = claims.filter(c => normalizeStatus(c.status) === 'completado').length;
+
+  // Estadísticas de solicitudes
+  const pendingRequests = requests.filter(r => normalizeStatus(r.status) === 'pendiente').length;
+  const inProgressRequests = requests.filter(r => normalizeStatus(r.status) === 'en proceso').length;
+  const completedRequests = requests.filter(r => normalizeStatus(r.status) === 'completado').length;
+
+  // Elementos recientes (ordenados por fecha de creación)
+  const recentClaims = claims
+    .filter(claim => claim.created_at) // Filtrar elementos con fecha válida
+    .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+    .slice(0, 3);
+  
+  const recentRequests = requests
+    .filter(request => request.created_at) // Filtrar elementos con fecha válida
+    .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+    .slice(0, 3);
+
+  // Función para obtener el estado formateado
+  const getStatusDisplay = (status: string) => {
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'pendiente':
+        return 'pendiente';
+      case 'en proceso':
+        return 'en proceso';
+      case 'completado':
+        return 'completado';
+      default:
+        return status;
+    }
+  };
+
+  // Función para formatear fechas
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Función para obtener tiempo relativo
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Hace menos de 1 hora';
+    } else if (diffInHours < 24) {
+      return `Hace ${diffInHours} hora${diffInHours > 1 ? 's' : ''}`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays < 7) {
+        return `Hace ${diffInDays} día${diffInDays > 1 ? 's' : ''}`;
+      } else {
+        return formatDate(dateString);
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -80,10 +137,10 @@ export default function DashboardPage() {
           link="/dashboard/claims"
         />
         <StatsCard
-          title="Reclamos Resueltos"
-          count={claims.filter(c => c.status === 'completed').length}
-          details={`${((claims.filter(c => c.status === 'completed').length / (claims.length || 1)) * 100).toFixed(0)}% completado`}
-          link="/dashboard/claims?status=completed"
+          title="Reclamos Completados"
+          count={completedClaims}
+          details={`${claims.length > 0 ? ((completedClaims / claims.length) * 100).toFixed(0) : 0}% completado`}
+          link="/dashboard/claims?status=completado"
         />
         <StatsCard
           title="Total Solicitudes"
@@ -93,9 +150,9 @@ export default function DashboardPage() {
         />
         <StatsCard
           title="Solicitudes Completadas"
-          count={requests.filter(r => r.status === 'completed').length}
-          details={`${((requests.filter(r => r.status === 'completed').length / (requests.length || 1)) * 100).toFixed(0)}% completado`}
-          link="/dashboard/requests?status=completed"
+          count={completedRequests}
+          details={`${requests.length > 0 ? ((completedRequests / requests.length) * 100).toFixed(0) : 0}% completado`}
+          link="/dashboard/requests?status=completado"
         />
       </div>
 
@@ -114,11 +171,8 @@ export default function DashboardPage() {
                 <RecentItem
                   key={claim.id}
                   title={claim.subject}
-                  status={claim.status === 'pending' ? 'pendiente' : 
-                         claim.status === 'in-progress' ? 'en proceso' : 'completado'}
-                  time=""
-                  priority={claim.status === 'pending' ? 'alta' : 
-                            claim.status === 'in-progress' ? 'media' : 'baja'}
+                  status={getStatusDisplay(claim.status)}
+                  time={getRelativeTime(claim.created_at!)}
                 />
               ))
             ) : (
@@ -140,11 +194,8 @@ export default function DashboardPage() {
                 <RecentItem
                   key={request.id}
                   title={request.subject}
-                  status={request.status === 'pending' ? 'pendiente' : 
-                         request.status === 'in-review' ? 'en revisión' : 'completado'}
-                  time=""
-                  priority={request.status === 'pending' ? 'alta' : 
-                            request.status === 'in-review' ? 'media' : 'baja'}
+                  status={getStatusDisplay(request.status)}
+                  time={getRelativeTime(request.created_at!)}
                 />
               ))
             ) : (
@@ -163,15 +214,15 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Pendientes</span>
-                <span className="text-sm font-medium">{claims.filter(c => c.status === 'Pendiente').length}</span>
+                <span className="text-sm font-medium">{pendingClaims}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">En Proceso</span>
-                <span className="text-sm font-medium">{claims.filter(c => c.status === 'En Proceso').length}</span>
+                <span className="text-sm font-medium">{inProgressClaims}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completados</span>
-                <span className="text-sm font-medium">{claims.filter(c => c.status === 'Completado').length}</span>
+                <span className="text-sm font-medium">{completedClaims}</span>
               </div>
             </div>
           </div>
@@ -180,15 +231,15 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Pendientes</span>
-                <span className="text-sm font-medium">{requests.filter(r => r.status === 'Pendiente').length}</span>
+                <span className="text-sm font-medium">{pendingRequests}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">En Proceso</span>
-                <span className="text-sm font-medium">{requests.filter(r => r.status === 'En Proceso').length}</span>
+                <span className="text-sm font-medium">{inProgressRequests}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Completadas</span>
-                <span className="text-sm font-medium">{requests.filter(r => r.status === 'Completado').length}</span>
+                <span className="text-sm font-medium">{completedRequests}</span>
               </div>
             </div>
           </div>
