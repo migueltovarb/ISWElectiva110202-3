@@ -67,6 +67,34 @@ export const authService = {
     }
   },
 
+  verifyPasswordResetToken: async (email: string, token: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // First get the user by email
+      const users = await fetchApi('/user', { method: 'GET' });
+      const user = users.find((u: User) => u.email === email);
+      if (!user) {
+        return { success: false, error: 'Usuario no encontrado' };
+      }
+
+      // Verify the token using PUT method (doesn't update verified field)
+      const authResponse = await fetchApi('/auth', {
+        method: 'PUT',
+        body: JSON.stringify({ user_id: user.id, code: token }),
+      });
+
+      if (authResponse.success) {
+        return { success: true };
+      } else {
+        return { success: false, error: authResponse.error || 'Código de verificación inválido' };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Error al verificar el código' 
+      };
+    }
+  },
+
   resetPassword: async (email: string, token: string, newPassword: string): Promise<{ message: string }> => {
     try {
       // First get the user by email
