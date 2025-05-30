@@ -29,9 +29,14 @@ class UserView(APIView):
             'email': request_data.get('email'),
             'password': request_data.get('password'),
             'phone': request_data.get('phone'),
-            'verified': request_data.get('verified'),
-            'is_admin': request_data.get('is_admin')
+            'verified': request_data.get('verified', 0),
+            'is_admin': request_data.get('is_admin', False)
         }
+        
+        # Set username to email if not provided (required by AbstractUser)
+        if not data.get('username'):
+            data['username'] = data['email']
+        
         serializer = user_serializer(data=data)
         if serializer.is_valid():
             try:
