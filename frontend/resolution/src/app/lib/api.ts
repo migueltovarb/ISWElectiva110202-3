@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8000/api'; // Ajusta esto a la URL de tu backend Django
+const API_URL = 'http://localhost:8000/api';
 
 interface ApiError {
   message: string;
@@ -45,13 +45,11 @@ export const fetchApi = async (
         const errorData = await response.json();
         errorMessage = errorData.error || errorData.detail || errorMessage;
       } catch {
-        // Si no se puede parsear como JSON, usar el mensaje predeterminado
       }
 
       throw new Error(errorMessage);
     }
 
-    // Para peticiones DELETE que pueden no devolver contenido
     if (response.status === 204) {
       return null;
     }
@@ -68,14 +66,13 @@ export const fetchApi = async (
   }
 };
 
-// Función para manejar la autenticación
+
 export const loginUser = async (email: string, password: string) => {
   try {
     const response = await fetchApi('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    // Retornar explícitamente user y token
     return {
       user: response.user,
       token: response.token,
@@ -87,7 +84,7 @@ export const loginUser = async (email: string, password: string) => {
   }
 };
 
-// Función para registrar usuario
+
 export const registerUser = async (userData: any) => {
   try {
     const response = await fetchApi('/user', {
@@ -102,15 +99,12 @@ export const registerUser = async (userData: any) => {
   }
 };
 
-// Función para verificar usuario
 export const verifyUser = async (email: string, code: string) => {
   try {
-    // Primero obtenemos el usuario por email
     const users = await fetchApi('/user', { method: 'GET' });
     const user = users.find((u: any) => u.email === email);
     if (!user) throw new Error('Usuario no encontrado');
 
-    // Hacemos POST a /auth (según el backend AuthenticationView.post)
     const response = await fetchApi('/auth', {
       method: 'POST',
       body: JSON.stringify({ user_id: user.id, code }),
