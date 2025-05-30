@@ -1,81 +1,185 @@
 // __tests__/app/auth/verify/page.test.tsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import VerifyPage from '../src/app/auth/verify/page';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../src/app/contexts/AuthContext';
+import VerifyPage from '../../src/app/auth/verify/page';
+import { verifyUser } from '../../src/app/lib/api';
 
-// Mocks
+// Mock de los módulos
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
-  useSearchParams: jest.fn(),
+  useSearchParams: () => new URLSearchParams('?email=test@test.com')
 }));
 
-jest.mock('../src/app/lib/auth', () => ({
-  authService: {
-    verifyUser: jest.fn(),
-    resendVerificationCode: jest.fn(),
-  },
+jest.mock('../../src/app/contexts/AuthContext', () => ({
+  useAuth: jest.fn()
 }));
 
-jest.mock('../src/app/components/auth/AuthLayout', () => ({
-  __esModule: true,
-  default: ({ children, title, subtitle }: any) => (
-    <div>
-      <h1 data-testid="auth-layout-title">{title}</h1>
-      <p data-testid="auth-layout-subtitle">{subtitle}</p>
-      {children}
-    </div>
-  ),
+jest.mock('../../src/app/lib/api', () => ({
+  verifyUser: jest.fn()
 }));
 
 describe('VerifyPage', () => {
-  const mockPush = jest.fn();
-  const mockGet = jest.fn();
+  const mockRouter = {
+    push: jest.fn()
+  };
 
   beforeEach(() => {
-    (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
-    (useSearchParams as jest.Mock).mockReturnValue({ get: mockGet });
-    mockGet.mockReturnValue('test@example.com');
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  it('redirige si no hay email', () => {
-    mockGet.mockReturnValue(null);
-    render(<VerifyPage />);
-    expect(mockPush).toHaveBeenCalledWith('/auth/login');
-  });
-
-  it('muestra el título y subtítulo correctos', () => {
-    render(<VerifyPage />);
-    expect(screen.getByTestId('auth-layout-title')).toHaveTextContent('Verificación de identidad');
-    expect(screen.getByTestId('auth-layout-subtitle')).toHaveTextContent('test@example.com');
-  });
-
-  it('maneja el envío del formulario correctamente', async () => {
-    const { authService } = require('../src/app/lib/auth');
-    authService.verifyUser.mockResolvedValue({ success: true });
-    
-    render(<VerifyPage />);
-    fireEvent.change(screen.getByPlaceholderText('123456'), { target: { value: '123456' } });
-    fireEvent.click(screen.getByText('Verificar'));
-    
-    await waitFor(() => {
-      expect(authService.verifyUser).toHaveBeenCalledWith('test@example.com', '123456');
+    (useRouter as jest.Mock).mockReturnValue(mockRouter);
+    (useAuth as jest.Mock).mockReturnValue({
+      user: null,
+      loading: false
     });
   });
 
-  it('maneja el reenvío de código', async () => {
-    const { authService } = require('../src/app/lib/auth');
-    authService.resendVerificationCode.mockResolvedValue({ success: true });
+  it('muestra el formulario de verificación', () => {
+    render(<VerifyPage />);
+    
+    expect(screen.getByText('Verificación de Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Código de verificación')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verificar/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reenviar código/i })).toBeInTheDocument();
+  });
+
+  it('maneja la verificación exitosa', async () => {
+    (verifyUser as jest.Mock).mockResolvedValueOnce({ success: true });
     
     render(<VerifyPage />);
-    fireEvent.click(screen.getByRole('button', { name: /Reenviar código/ }));
+    
+    const codeInput = screen.getByLabelText('Código de verificación');
+    const verifyButton = screen.getByRole('button', { name: /verificar/i });
+    
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(verifyButton);
     
     await waitFor(() => {
-      expect(authService.resendVerificationCode).toHaveBeenCalledWith('test@example.com');
+      expect(verifyUser).toHaveBeenCalledWith('test@test.com', '123456');
+      expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
     });
+  });
+
+  it('maneja errores de verificación', async () => {
+    (verifyUser as jest.Mock).mockRejectedValueOnce(new Error('Código inválido'));
+    
+    render(<VerifyPage />);
+    
+    const codeInput = screen.getByLabelText('Código de verificación');
+    const verifyButton = screen.getByRole('button', { name: /verificar/i });
+    
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(verifyButton);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Código inválido')).toBeInTheDocument();
+    });
+  });
+
+  it('muestra mensaje de carga durante la verificación', async () => {
+    (verifyUser as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    
+    render(<VerifyPage />);
+    
+    const codeInput = screen.getByLabelText('Código de verificación');
+    const verifyButton = screen.getByRole('button', { name: /verificar/i });
+    
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(verifyButton);
+    
+    expect(screen.getByText('Verificando...')).toBeInTheDocument();
+  });
+
+  it('valida el formato del código de verificación', async () => {
+    render(<VerifyPage />);
+    
+    const codeInput = screen.getByLabelText('Código de verificación');
+    const verifyButton = screen.getByRole('button', { name: /verificar/i });
+    
+    // Código muy corto
+    fireEvent.change(codeInput, { target: { value: '123' } });
+    fireEvent.click(verifyButton);
+    expect(screen.getByText('El código debe tener 6 dígitos')).toBeInTheDocument();
+    
+    // Código con letras
+    fireEvent.change(codeInput, { target: { value: '123abc' } });
+    fireEvent.click(verifyButton);
+    expect(screen.getByText('El código debe contener solo números')).toBeInTheDocument();
+    
+    // Código válido
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(verifyButton);
+    expect(screen.queryByText('El código debe tener 6 dígitos')).not.toBeInTheDocument();
+    expect(screen.queryByText('El código debe contener solo números')).not.toBeInTheDocument();
+  });
+
+  it('maneja el caso de token no encontrado', () => {
+    (useRouter as jest.Mock).mockReturnValue({
+      ...mockRouter,
+      useSearchParams: () => new URLSearchParams('')
+    });
+    
+    render(<VerifyPage />);
+    
+    expect(screen.getByText('Token de verificación no encontrado')).toBeInTheDocument();
+  });
+
+  it('permite reenviar el código de verificación', async () => {
+    (verifyUser as jest.Mock).mockResolvedValueOnce({ success: true });
+    
+    render(<VerifyPage />);
+    
+    const resendButton = screen.getByRole('button', { name: /reenviar código/i });
+    fireEvent.click(resendButton);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Código reenviado')).toBeInTheDocument();
+    });
+  });
+
+  it('maneja errores al reenviar el código', async () => {
+    (verifyUser as jest.Mock).mockRejectedValueOnce(new Error('Error al reenviar'));
+    
+    render(<VerifyPage />);
+    
+    const resendButton = screen.getByRole('button', { name: /reenviar código/i });
+    fireEvent.click(resendButton);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Error al reenviar')).toBeInTheDocument();
+    });
+  });
+
+  it('muestra mensaje de carga al reenviar código', async () => {
+    (verifyUser as jest.Mock).mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    
+    render(<VerifyPage />);
+    
+    const resendButton = screen.getByRole('button', { name: /reenviar código/i });
+    fireEvent.click(resendButton);
+    
+    expect(screen.getByText('Reenviando...')).toBeInTheDocument();
+  });
+
+  it('redirige a usuarios ya autenticados', () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 1, email: 'test@test.com' },
+      loading: false
+    });
+    
+    render(<VerifyPage />);
+    
+    expect(mockRouter.push).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('muestra mensaje de carga mientras se verifica la autenticación', () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      user: null,
+      loading: true
+    });
+    
+    render(<VerifyPage />);
+    
+    expect(screen.getByText('Cargando...')).toBeInTheDocument();
   });
 });
