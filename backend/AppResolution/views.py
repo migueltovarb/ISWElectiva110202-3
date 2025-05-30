@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import timedelta
 import threading
 import time
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 
 #creates
 #usuario
@@ -30,6 +30,7 @@ class UserView(APIView):
             'password': request_data.get('password'),
             'phone': request_data.get('phone'),
             'verified': request_data.get('verified'),
+            'is_admin': request_data.get('is_admin')
         }
         serializer = user_serializer(data=data)
         if serializer.is_valid():
@@ -46,7 +47,17 @@ class UserView(APIView):
                     return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request):
+    def get(self, request, pk=None):
+        # Si se proporciona un ID específico, devolver ese usuario
+        if pk:
+            try:
+                user = User.objects.get(pk=pk)
+                serializer = user_serializer(user)
+                return Response(serializer.data)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Si no hay ID, devolver todos los usuarios
         users = User.objects.all()
         serializer = user_serializer(users, many=True)
         return Response(serializer.data)
@@ -59,6 +70,7 @@ class UserView(APIView):
             'password': request.data.get('password'),
             'phone': request.data.get('phone'),
             'verified': request.data.get('verified'),
+            'is_admin': request.data.get('is_admin')
         }
         serializer = user_serializer(data=data)
         if serializer.is_valid():
@@ -79,15 +91,85 @@ class UserView(APIView):
             return Response({"error": "Se requiere el ID del usuario."}, status=status.HTTP_400_BAD_REQUEST)
         
         user = get_object_or_404(User, pk=pk)
+        request_data = request.data[0] if isinstance(request.data, list) else request.data
 
-        verified_value = request.data.get("verified")
-        if verified_value is None:
-            return Response({"error": "Campo 'verified' requerido."}, status=status.HTTP_400_BAD_REQUEST)
+        # Si solo se está actualizando el campo verified (funcionalidad original)
+        if 'verified' in request_data and len(request_data) == 1:
+            verified_value = request_data.get("verified")
+            if verified_value is None:
+                return Response({"error": "Campo 'verified' requerido."}, status=status.HTTP_400_BAD_REQUEST)
 
+            try:
+                user.verified = int(verified_value)  
+                user.save()
+                return Response({"message": "Verificación actualizada correctamente."}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Si se están actualizando otros campos del perfil
         try:
-            user.verified = int(verified_value)  
+            # Actualizar campos del usuario si están presentes
+            if 'first_name' in request_data:
+                user.first_name = request_data.get('first_name')
+            if 'last_name' in request_data:
+                user.last_name = request_data.get('last_name')
+            if 'email' in request_data:
+                user.email = request_data.get('email')
+            if 'phone' in request_data:
+                user.phone = request_data.get('phone')
+            if 'password' in request_data:
+                # Hashear la contraseña antes de guardarla
+                user.password = make_password(request_data.get('password'))
+            if 'is_admin' in request_data:
+                user.is_admin = request_data.get('is_admin')
             user.save()
-            return Response({"message": "Verificación actualizada correctamente."}, status=status.HTTP_200_OK)
+            
+            # También actualizar el perfil asociado si existe
+            if hasattr(user, 'profile') and user.profile:
+                profile = user.profile
+                if 'first_name' in request_data:
+                    profile.first_name = request_data.get('first_name')
+                if 'last_name' in request_data:
+                    profile.last_name = request_data.get('last_name')
+                if 'email' in request_data:
+                    profile.email = request_data.get('email')
+                if 'phone' in request_data:
+                    profile.phone = request_data.get('phone')
+                if 'password' in request_data:
+                    # Hashear la contraseña antes de guardarla en el perfil
+                    profile.password = make_password(request_data.get('password'))
+                if 'is_admin' in request_data:
+                    profile.is_admin = request_data.get('is_admin')
+                
+                profile.save()
+            
+            # Devolver los datos actualizados del usuario
+            user_data = {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'phone': user.phone,
+                'verified': user.verified,
+                'is_admin': user.is_admin
+            }
+            
+            return Response({
+                "message": "Perfil actualizado correctamente.",
+                "user": user_data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def delete(self,request,pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID del usuario"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(pk=pk)
+            user.delete()
+            return Response({"message": "Usuario eliminado correctamente"}, status=status.HTTP_200_OK)  
+        except User.DoesNotExist:
+            return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -128,7 +210,7 @@ class AuthenticationView(APIView):
                 
                 # Enviar el código por correo electrónico
                 try:
-                    send_auth_email(get_latest_auth_code())
+                    send_auth_email(get_latest_auth_code(), user.email)
                     print(f"Correo enviado con éxito con código: {get_latest_auth_code()}")
                 except Exception as e:
                     print(f"Error al enviar correo: {str(e)}")
@@ -180,6 +262,25 @@ class AuthenticationView(APIView):
                     user.profile = perfil
                     user.save()
                 return Response({'success': True})
+            else:
+                return Response({'success': False, 'error': 'Código incorrecto'}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+    def put(self, request):
+        """
+        Verifica el token sin actualizar el campo verified (para recuperación de contraseña)
+        """
+        user_id = request.data.get('user_id')
+        input_code = request.data.get('code')
+        if not user_id or not input_code:
+            return Response({'error': 'Faltan datos'}, status=400)
+        try:
+            auth_record = Authentication.objects.filter(user_id=user_id).order_by('-id').first()
+            if not auth_record:
+                return Response({'error': 'No se encontró código para este usuario'}, status=404)
+            if str(auth_record.token) == str(input_code):
+                return Response({'success': True, 'message': 'Token válido'})
             else:
                 return Response({'success': False, 'error': 'Código incorrecto'}, status=400)
         except Exception as e:
@@ -257,7 +358,17 @@ class ClaimView(APIView):
             return Response({"error": "Reclamo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+    def delete(self,request,pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID del reclamo"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            claim = Claim.objects.get(pk=pk)
+            claim.delete()
+            return Response({"message": "Reclamo eliminado correctamente"}, status=status.HTTP_200_OK)
+        except Claim.DoesNotExist:
+            return Response({"error": "Reclamo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 #solicitud
 class RequestView(APIView):
     def post(self, request):
@@ -330,6 +441,17 @@ class RequestView(APIView):
             return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def delete(self, request, pk=None):
+        if not pk:
+            return Response({"error": "Se requiere el ID de la solicitud"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            req = Request.objects.get(pk=pk)
+            req.delete()
+            return Response({"message": "Solicitud eliminada correctamente"}, status=status.HTTP_200_OK)
+        except Request.DoesNotExist:
+            return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 #profile
 class ProfileView(APIView):
@@ -349,9 +471,9 @@ class ProfileView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, Status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, pk=None):
+    def patch(self, request, pk=None):
         request_data = request.data[0] if isinstance(request.data, list) else request.data
         
         if not pk:
@@ -369,10 +491,11 @@ class ProfileView(APIView):
                 profile.last_name = request_data.get('last_name')
             if 'email' in request_data:
                 profile.email = request_data.get('email')
-            if 'password' in request_data:
-                profile.password = request_data.get('password')
             if 'phone' in request_data:
                 profile.phone = request_data.get('phone')
+            if 'password' in request_data:
+                # Hashear la contraseña antes de guardarla en el perfil
+                profile.password = make_password(request_data.get('password'))
             if 'photo' in request_data:
                 profile.photo = request_data.get('photo')
             
@@ -450,7 +573,8 @@ class LoginView(APIView):
                             "last_name": user.last_name,
                             "email": user.email,
                             "phone": user.phone,
-                            "verified": user.verified
+                            "verified": user.verified,
+                            "is_admin": user.is_admin
                         },
                         "profile": profile_data,
                         "token": "dummy-token"
@@ -487,3 +611,253 @@ def delete_auth_token_after_timeout(auth_id, timeout_minutes=10):
     thread.daemon = True  # Hacer que el hilo sea un demonio para que no bloquee la salida
     thread.start()
     return thread
+
+# Panel de administrador
+class AdminView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """
+        Obtener todas las solicitudes y reclamos para el panel de administrador
+        """
+        try:
+            # Verificar si el usuario es administrador
+            user_id = request.query_params.get('user_id')
+            if not user_id:
+                return Response({"error": "Se requiere user_id"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                user = User.objects.get(id=user_id)
+                if not user.is_admin:
+                    return Response({"error": "Acceso denegado. Solo administradores."}, status=status.HTTP_403_FORBIDDEN)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Obtener todas las solicitudes y reclamos
+            claims = Claim.objects.all().order_by('-created_at')
+            requests = Request.objects.all().order_by('-created_at')
+            
+            # Serializar los datos incluyendo información del usuario
+            claims_data = []
+            for claim in claims:
+                claim_data = claim_serializer(claim).data
+                claim_data['user_info'] = {
+                    'id': claim.user.id,
+                    'first_name': claim.user.first_name,
+                    'last_name': claim.user.last_name,
+                    'email': claim.user.email
+                }
+                claims_data.append(claim_data)
+            
+            requests_data = []
+            for req in requests:
+                request_data = request_serializer(req).data
+                request_data['user_info'] = {
+                    'id': req.user.id,
+                    'first_name': req.user.first_name,
+                    'last_name': req.user.last_name,
+                    'email': req.user.email
+                }
+                requests_data.append(request_data)
+            
+            return Response({
+                "claims": claims_data,
+                "requests": requests_data,
+                "total_claims": len(claims_data),
+                "total_requests": len(requests_data)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def patch(self, request):
+        """
+        Actualizar el estado de una solicitud o reclamo
+        """
+        try:
+            # Verificar si el usuario es administrador
+            user_id = request.data.get('user_id')
+            if not user_id:
+                return Response({"error": "Se requiere user_id"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                user = User.objects.get(id=user_id)
+                if not user.is_admin:
+                    return Response({"error": "Acceso denegado. Solo administradores."}, status=status.HTTP_403_FORBIDDEN)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Obtener los datos de la solicitud
+            item_type = request.data.get('type')  # 'claim' o 'request'
+            item_id = request.data.get('id')
+            new_status = request.data.get('status')
+            
+            if not all([item_type, item_id, new_status]):
+                return Response({"error": "Se requieren type, id y status"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Actualizar según el tipo
+            if item_type == 'claim':
+                try:
+                    claim = Claim.objects.get(id=item_id)
+                    claim.status = new_status
+                    claim.save()
+                    return Response({
+                        "message": "Estado del reclamo actualizado correctamente",
+                        "data": claim_serializer(claim).data
+                    }, status=status.HTTP_200_OK)
+                except Claim.DoesNotExist:
+                    return Response({"error": "Reclamo no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            
+            elif item_type == 'request':
+                try:
+                    req = Request.objects.get(id=item_id)
+                    req.status = new_status
+                    req.save()
+                    return Response({
+                        "message": "Estado de la solicitud actualizado correctamente",
+                        "data": request_serializer(req).data
+                    }, status=status.HTTP_200_OK)
+                except Request.DoesNotExist:
+                    return Response({"error": "Solicitud no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+            
+            else:
+                return Response({"error": "Tipo inválido. Use 'claim' o 'request'"}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# Panel de reportes para administradores
+class ReportsView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """
+        Obtener estadísticas detalladas de solicitudes y reclamos para reportes
+        """
+        try:
+            # Verificar si el usuario es administrador
+            user_id = request.GET.get('user_id')  # Changed from request.query_params.get('user_id')
+            if not user_id:
+                return Response({"error": "Se requiere user_id"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                user = User.objects.get(id=user_id)
+                if not user.is_admin:
+                    return Response({"error": "Acceso denegado. Solo administradores."}, status=status.HTTP_403_FORBIDDEN)
+            except User.DoesNotExist:
+                return Response({"error": "Usuario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Obtener todas las solicitudes y reclamos
+            claims = Claim.objects.all()
+            requests = Request.objects.all()
+            
+            # Estadísticas de reclamos
+            claims_stats = {
+                'total': claims.count(),
+                'pendiente': claims.filter(status__iexact='pendiente').count(),
+                'en_proceso': claims.filter(status__iexact='en proceso').count(),
+                'completado': claims.filter(status__iexact='completado').count(),
+            }
+            
+            # Estadísticas de solicitudes
+            requests_stats = {
+                'total': requests.count(),
+                'pendiente': requests.filter(status__iexact='pendiente').count(),
+                'en_proceso': requests.filter(status__iexact='en proceso').count(),
+                'completado': requests.filter(status__iexact='completado').count(),
+            }
+            
+            # Datos para gráficas por fecha (últimos 30 días)
+            from datetime import timedelta
+            
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=29)  # 30 días incluyendo hoy
+            
+            # Generar lista de fechas para los últimos 30 días
+            date_range = []
+            current_date = start_date
+            while current_date <= end_date:
+                date_range.append(current_date.strftime('%Y-%m-%d'))
+                current_date += timedelta(days=1)
+            
+            # Obtener datos de reclamos y solicitudes en el rango de fechas
+            claims_in_range = claims.filter(
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date
+            )
+            
+            requests_in_range = requests.filter(
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date
+            )
+            
+            # Organizar datos para gráficas
+            claims_chart_data = {}
+            requests_chart_data = {}
+            
+            # Inicializar datos para cada fecha
+            for date_str in date_range:
+                claims_chart_data[date_str] = {
+                    'pendiente': 0,
+                    'en_proceso': 0,
+                    'completado': 0,
+                    'total': 0
+                }
+                requests_chart_data[date_str] = {
+                    'pendiente': 0,
+                    'en_proceso': 0,
+                    'completado': 0,
+                    'total': 0
+                }
+            
+            # Procesar reclamos
+            for claim in claims_in_range:
+                date_str = claim.created_at.date().strftime('%Y-%m-%d')
+                status_value = (claim.status or 'pendiente').lower()
+                
+                if date_str in claims_chart_data:
+                    if status_value in claims_chart_data[date_str]:
+                        claims_chart_data[date_str][status_value] += 1
+                    claims_chart_data[date_str]['total'] += 1
+            
+            # Procesar solicitudes
+            for req in requests_in_range:
+                date_str = req.created_at.date().strftime('%Y-%m-%d')
+                status_value = (req.status or 'pendiente').lower()
+                
+                if date_str in requests_chart_data:
+                    if status_value in requests_chart_data[date_str]:
+                        requests_chart_data[date_str][status_value] += 1
+                    requests_chart_data[date_str]['total'] += 1
+            
+            # Convertir a formato de array para gráficas
+            claims_chart_array = []
+            requests_chart_array = []
+            
+            for date_str in date_range:
+                claims_chart_array.append({
+                    'date': date_str,
+                    **claims_chart_data[date_str]
+                })
+                requests_chart_array.append({
+                    'date': date_str,
+                    **requests_chart_data[date_str]
+                })
+            
+            return Response({
+                "claims_stats": claims_stats,
+                "requests_stats": requests_stats,
+                "claims_chart_data": claims_chart_array,
+                "requests_chart_data": requests_chart_array,
+                "date_range": {
+                    "start_date": start_date.strftime('%Y-%m-%d'),
+                    "end_date": end_date.strftime('%Y-%m-%d')
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import traceback
+            print(f"Error en ReportsView: {str(e)}")
+            print(traceback.format_exc())
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+

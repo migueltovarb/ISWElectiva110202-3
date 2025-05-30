@@ -10,6 +10,7 @@ class User(AbstractUser):
     password = models.CharField(max_length=30)
     phone = models.CharField(max_length=15, null=True, unique=True)
     verified = models.IntegerField(default=0)
+    is_admin = models.BooleanField(default=False)
     profile = models.OneToOneField('Profile', on_delete=models.SET_NULL, null=True, blank=True, related_name='user_profile')
 
     USERNAME_FIELD = 'email'

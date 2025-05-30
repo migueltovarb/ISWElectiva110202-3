@@ -47,6 +47,20 @@ export const requestsService = {
   getRequestById: async (id: number, token?: string) => {
     return await fetchApi(`/request/${id}`, { method: 'GET' }, token);
   },
+
+  deleteRequest: async (id: number): Promise<void> => {
+    try {
+      await fetchApi(`/request/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      throw error;
+    }
+  },
 };
 
 //hola

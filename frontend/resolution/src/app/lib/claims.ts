@@ -47,4 +47,18 @@ export const claimsService = {
   getClaimById: async (id: number, token?: string) => {
     return await fetchApi(`/claim/${id}`, { method: 'GET' }, token);
   },
+
+  deleteClaim: async (id: number): Promise<void> => {
+    try {
+      await fetchApi(`/claim/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Error deleting claim:', error);
+      throw error;
+    }
+  },
 };
