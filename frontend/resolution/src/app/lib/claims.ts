@@ -1,5 +1,3 @@
-// claims.ts
-
 import { fetchApi } from './api';
 
 export interface Claim {

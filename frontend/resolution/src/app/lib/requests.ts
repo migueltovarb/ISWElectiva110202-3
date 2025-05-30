@@ -1,5 +1,3 @@
-// request.ts
-
 import { fetchApi } from './api';
 
 export interface Request {
